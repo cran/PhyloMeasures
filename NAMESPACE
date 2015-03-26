@@ -1,0 +1,21 @@
+useDynLib(PhyloMeasures)
+
+import(ape)
+
+export(pd.query,
+       mpd.query,
+       mntd.query,
+       cac.query,
+       cbl.query,
+       cd.query,
+       cdnt.query,
+       cdnt.averaged.query,
+       cdnt.directed.query,
+       phylosor.query,
+       unifrac.query,
+       pd.moments,
+       mpd.moments,
+       mntd.moments,
+       cac.moments,
+       cbl.moments,
+       cd.moments)
