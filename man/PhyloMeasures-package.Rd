@@ -17,9 +17,9 @@ and the Unique Fraction (UniFrac).
 \tabular{ll}{
 Package: \tab PhyloMeasures\cr
 Type: \tab Package\cr
-Version: \tab 1.0\cr
+Version: \tab 1.1\cr
 Date: \tab 2015-03-20\cr
-License: \tab What GPL-3 \cr
+License: \tab GPL-3 \cr
 }
 The package contains two types of functions; functions that compute the value of a phylogenetic biodiversity measure, and functions that compute the statistical moments of a measure. We refer to the functions of the first type as query functions, and we refer to the functions of the latter type as moment functions. 
 

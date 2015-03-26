@@ -91,8 +91,7 @@
       int child_index = current_node.marked_children[i];
       Node_type child = tree.node(current_node.marked_children[i]);
 
-      Number_type cmin = std::min(current_first_min, current_node.rest_tree_min),
-                  comp_min;
+      Number_type cmin = std::min(current_first_min, current_node.rest_tree_min);
 
       if(current_node.rest_tree_min == Number_type(-1.0))
         cmin = current_first_min;
@@ -234,8 +233,6 @@
 
     if( !_hypergeom.empty() )
       _hypergeom.clear();
-
-    Number_type f0(1.0);
 
     std::vector<Number_type> tempgeom;
     tempgeom.push_back(Number_type(1.0));

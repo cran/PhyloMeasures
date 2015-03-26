@@ -56,20 +56,20 @@ private:
  {
    _Is_placed_before(){};
 
-   bool operator()( const std::string &s1, const std::string &s2 )
-  {
-      if( s1.size() < s2.size() )
-        return true;
+   bool operator()( const std::string &s1, const std::string &s2 ) const
+   {
+     if( s1.size() < s2.size() )
+       return true;
 
-      if( s1.size() > s2.size() )
-        return false;
+     if( s1.size() > s2.size() )
+       return false;
 
-      int comp = s1.compare(s2);
+     int comp = s1.compare(s2);
 
-      if(comp < 0)
-        return true ;
+     if(comp < 0)
+       return true ;
 
-      return false;
+     return false;
   }
  }; // Is_placed_before
 
@@ -114,8 +114,8 @@ private:
 public:
 
   Phylogenetic_tree_base():_root_index(-1),_is_ultrametric(-1),
-                           _is_ultrametric_predicate_precision(0.001),
-                           _assigned_all_subtree_leaves(false){}
+                           _assigned_all_subtree_leaves(false),
+                           _is_ultrametric_predicate_precision(0.001){}
 
   Node_type& node( int index)
   { return _container[index]; }

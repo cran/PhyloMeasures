@@ -145,8 +145,6 @@
     if( !_hypergeom.empty() )
       _hypergeom.clear();
 
-    Number_type f0(1.0);
-
     std::vector<Number_type> tempgeom;
     tempgeom.push_back(Number_type(1.0));
 

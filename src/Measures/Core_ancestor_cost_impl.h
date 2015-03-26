@@ -170,8 +170,6 @@
     if( !_hypergeom_a.empty() )
       _hypergeom_a.clear();
 
-    Number_type f0(1.0);
-
     std::vector<Number_type> tempgeom;
     tempgeom.push_back(Number_type(1.0));
 
@@ -198,8 +196,6 @@
 
     if( !_hypergeom_b.empty() )
       _hypergeom_b.clear();
-
-    Number_type f0(1.0);
 
     std::vector<Number_type> tempgeom;
     tempgeom.push_back(Number_type(1.0));
