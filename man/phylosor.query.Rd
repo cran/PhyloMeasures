@@ -35,7 +35,7 @@ Graham, C.H. and P.V.A. Fine. 2008. Phylogenetic beta diversity: linking ecologi
 
 Swenson, N.G. 2011. Phylogenetic beta diversity metrics, trait evolution and inferring functional beta diversity of communities. PLoS ONE: 6: e21264.}
 
-\author{Brody Sandel (brody.sandel@bios.au.dk) and Constantinos Tsirogiannis (constant@madalgo.au.dk)}
+\author{Constantinos Tsirogiannis (tsirogiannis.c@gmail.com) and Brody Sandel (bsandel@scu.edu)  }
 
 \examples{
 #Load phylogenetic tree of bird families from package "ape"

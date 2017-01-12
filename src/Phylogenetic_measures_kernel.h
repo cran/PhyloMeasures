@@ -1,5 +1,5 @@
 //////////////////////////////////////////////////////////////////////////////////
-//    Copyright (C) 2015,  Constantinos Tsirogiannis.  Email: analekta@gmail.com
+//    Copyright (C) 2016,  Constantinos Tsirogiannis.  Email: tsirogiannis.c@gmail.com
 //
 //    This file is part of PhyloMeasures.
 //
@@ -22,6 +22,10 @@
 
 #include "Tree_node.h"
 #include "Measures/Measure_base.h"
+#include "Measures/Polynomial_related_types.h"
+#include "Measures/Poisson_binomial_types.h"
+#include "Incremental_Monte_Carlo_types/Incremental_Monte_Carlo_handler.h"
+#include "Random_samplers.h"
 #include "Phylogenetic_measures.h"
 #include "Numeric_traits_double.h"
 #include "Phylogenetic_tree_base.h"
@@ -31,10 +35,19 @@
 template< class NTS = typename PhylogeneticMeasures::Numeric_traits_double>
 struct Phylogenetic_measures_kernel
 {
-  typedef NTS                                                    Numeric_traits;
-  typedef typename Numeric_traits::Number_type                   Number_type;
-  typedef Phylogenetic_measures_kernel<Numeric_traits>           Self;
+  typedef NTS                                              Numeric_traits;
+  typedef Phylogenetic_measures_kernel<Numeric_traits>     Self;
+  typedef typename Numeric_traits::Number_type            Number_type;
+  typedef typename Numeric_traits::Protected_number_type  Protected_number_type;
   
+  enum Measure_type {PHYLOGENETIC_DIVERSITY, MEAN_PAIRWISE_DISTANCE, 
+                     MEAN_NEAREST_TAXON_DISTANCE, CORE_ANCESTOR_COST, 
+                     COMMON_BRANCH_LENGTH, COMMUNITY_DISTANCE, 
+                     COMMUNITY_DISTANCE_NEAREST_TAXON, 
+                     PHYLOGENETIC_SORENSENS_SIMILARITY, 
+                     UNIQUE_FRACTION};
+
+  enum Distribution_type {UNIFORM_FIXED_SIZE, POISSON_BINOMIAL, POISSON_BINOMIAL_FIXED_SIZE, SEQUENTIAL_FIXED_SIZE};
   enum Edge_relation_type {OFFSPRING, ANCESTOR, INDEPENDENT};
   
   /////////////////////////////////////////////////////////////////////////////
@@ -86,6 +99,20 @@ struct Phylogenetic_measures_kernel
   public PhylogeneticMeasures::Mean_pairwise_distance_base<Self,TreeType>
   {};
 
+  ///////////////////////////////////////////////////////////////////
+  // Classes that are used to compute the moments of several       // 
+  // measures under the constrained Poisson binomial distribution  //
+  ///////////////////////////////////////////////////////////////////
+
+  typedef typename PhylogeneticMeasures::Poisson_binomial_moments_Phylogenetic_diversity<Self>
+                                                  Poisson_binomial_moments_Phylogenetic_diversity;
+
+  typedef typename PhylogeneticMeasures::Poisson_binomial_moments_Mean_pairwise_distance<Self>
+                                                  Poisson_binomial_moments_Mean_pairwise_distance;
+
+  typedef typename PhylogeneticMeasures::Poisson_binomial_moments_Mean_nearest_taxon_distance<Self>
+                                                  Poisson_binomial_moments_Mean_nearest_taxon_distance;
+
   ////////////////////////////////////////////////////////////////////////////////////////
   // Classes that compute the values and moments of phylogenetic biodiversity measures  //
   ////////////////////////////////////////////////////////////////////////////////////////
@@ -99,6 +126,28 @@ struct Phylogenetic_measures_kernel
   typedef typename PhylogeneticMeasures::Community_distance_nearest_taxon<Self>   Community_distance_nearest_taxon;  
   typedef typename PhylogeneticMeasures::Phylogenetic_Sorensens_similarity<Self>  Phylogenetic_Sorensens_similarity;
   typedef typename PhylogeneticMeasures::Unique_fraction<Self>                    Unique_fraction;
+
+
+  ///////////////////////////////////////////////////
+  // Classes related to polynomial multiplication  //
+  ///////////////////////////////////////////////////
+
+  typedef typename PhylogeneticMeasures::Polynomial_rep<Self>             Polynomial;
+  typedef typename PhylogeneticMeasures::Polynomial_multiplication<Self>  Polynomial_multiplication;
+
+  ///////////////////////////////////////////
+  // Classes that perform random sampling. //
+  ///////////////////////////////////////////
+
+  typedef typename PhylogeneticMeasures::Uniform_sampler<Self>     Uniform_sampler;
+  typedef typename PhylogeneticMeasures::Sequential_sampler<Self>  Sequential_sampler;
+
+  ///////////////////////////////////////////////////////////////
+  // Class that performs incremental Monte Carlo calculations. //
+  ///////////////////////////////////////////////////////////////
+
+  typedef typename PhylogeneticMeasures::Incremental_Monte_Carlo_handler<Self> 
+                                                              Incremental_Monte_Carlo_handler;
 
   //////////////////////////////////////////
   // Classes used for handling exceptions //

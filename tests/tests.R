@@ -1,7 +1,7 @@
 ################################################################################################
-##    Copyright (C) 2015,  Constantinos Tsirogiannis and Brody Sandel.  
+##    Copyright (C) 2016,  Constantinos Tsirogiannis and Brody Sandel.  
 ##
-##    Email: analekta@gmail.com and brody.sandel@bios.au.dk
+##    Email: tsirogiannis.c@gmail.com and bsandel@scu.edu
 ##
 ##    This file is part of PhyloMeasures.
 ##
@@ -45,7 +45,7 @@ for( k in 0:length(names))
   ########## Check PD functions ############ 
   ##########################################
 
-  results.pd = pd.query(input.tree, input.data, is.standardised = FALSE)
+  results.pd = pd.query(input.tree, input.data, standardize = FALSE)
   moments.pd = pd.moments(input.tree, c(k))
 
   expectation.check = 0
@@ -75,7 +75,7 @@ for( k in 0:length(names))
   ########## Check MPD functions ########### 
   ##########################################
 
-  results.mpd = mpd.query(input.tree, input.data, is.standardised = FALSE)
+  results.mpd = mpd.query(input.tree, input.data, standardize = FALSE)
   moments.mpd = mpd.moments(input.tree, c(k))
 
   expectation.check = 0
@@ -105,7 +105,7 @@ for( k in 0:length(names))
   ######### Check MNTD functions ########### 
   ##########################################
 
-  results.mntd = mntd.query(input.tree, input.data, is.standardised = FALSE)
+  results.mntd = mntd.query(input.tree, input.data, standardize = FALSE)
   moments.mntd = mntd.moments(input.tree, c(k))
 
   expectation.check = 0
@@ -128,14 +128,21 @@ for( k in 0:length(names))
     stop("There is an unexpected discrepancy in the value of the MNTD expectation.")
 
   if( abs(moments.mntd[2] - deviation.check) > 0.01 )
-    stop("There is an unexpected discrepancy in the value of the MNTD deviation.")
+  {
+    diff = abs(moments.mntd[2] - deviation.check)
 
+    cat("moments.mntd[2]: ", moments.mntd[2], "\n")  
+    cat("deviation.check: ", deviation.check, "\n")  
+    cat("diff: " , diff , "\n")  
+
+    stop("There is an unexpected discrepancy in the value of the MNTD deviation.")
+  }
 
   ##########################################
   ########## Check CAC functions ########### 
   ##########################################
   my.chi = 0.76
-  results.cac = cac.query(input.tree, input.data, my.chi, is.standardised = FALSE)
+  results.cac = cac.query(input.tree, input.data, my.chi, standardize = FALSE)
   moments.cac = cac.moments(input.tree, my.chi, c(k))
 
   expectation.check = 0
@@ -183,7 +190,7 @@ for( k in 0:length(names))
     ##########################################
     ########## Check CBL functions ########### 
     ##########################################
-    results.cbl = cbl.query(input.tree, input.data, matrix.b = input.data.b, is.standardised = FALSE)
+    results.cbl = cbl.query(input.tree, input.data, matrix.b = input.data.b, standardize = FALSE)
     moments.cbl= cbl.moments(input.tree, input.sizes)
 
     expectation.check = 0
@@ -215,7 +222,7 @@ for( k in 0:length(names))
     ########## Check CD functions ########### 
     ##########################################
 
-    results.cd = cd.query(input.tree, input.data, matrix.b = input.data.b, is.standardised = FALSE)
+    results.cd = cd.query(input.tree, input.data, matrix.b = input.data.b, standardize = FALSE)
     moments.cd= cd.moments(input.tree, input.sizes)
 
     expectation.check = 0

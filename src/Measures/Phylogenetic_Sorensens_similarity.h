@@ -1,5 +1,5 @@
 //////////////////////////////////////////////////////////////////////////////////
-//    Copyright (C) 2015,  Constantinos Tsirogiannis.  Email: analekta@gmail.com
+//    Copyright (C) 2016,  Constantinos Tsirogiannis.  Email: tsirogiannis.c@gmail.com
 //
 //    This file is part of PhyloMeasures.
 //
@@ -51,6 +51,11 @@ struct Phylogenetic_Sorensens_similarity: public KernelType::Measure_base_bimoda
   Phylogenetic_Sorensens_similarity(Tree_type &tree)
   { p_tree = &tree;}
 
+  Tree_type& tree(void)
+  { return *p_tree;}
+
+  Tree_type* tree_pointer(void)
+  { return p_tree;}
 
   template< class RangeIterator >
   Number_type operator()( RangeIterator rbegin_a, RangeIterator rend_a,
@@ -140,6 +145,9 @@ struct Phylogenetic_Sorensens_similarity: public KernelType::Measure_base_bimoda
   //////////////////////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  bool is_symmetric()
+  { return true;}
 
   Number_type compute_expectation( int sample_size_a, int sample_size_b )
   {  

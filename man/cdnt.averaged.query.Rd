@@ -38,7 +38,7 @@ entry [i,j] in the output matrix stores the aCDNT value between the tip sets spe
 \references{Graham, C.H. and P.V.A. Fine. 2008. Phylogenetic beta diversity: linking ecological and evolutionary processes across space and time. Ecology Letters 11: 1265:1277. 
 
 Swenson, N.G. 2011. Phylogenetic beta diversity metrics, trait evolution and inferring functional beta diversity of communities. PLoS ONE: 6: e21264.}
-\author{Constantinos Tsirogiannis (constant@madalgo.au.dk)}
+\author{Constantinos Tsirogiannis (tsirogiannis.c@gmail.com)}
 
 \seealso{\code{\link{cdnt.directed.query}}, \code{\link{cdnt.query}}
 }

@@ -1,5 +1,5 @@
 //////////////////////////////////////////////////////////////////////////////////
-//    Copyright (C) 2015,  Constantinos Tsirogiannis.  Email: analekta@gmail.com
+//    Copyright (C) 2016,  Constantinos Tsirogiannis.  Email: tsirogiannis.c@gmail.com
 //
 //    This file is part of PhyloMeasures.
 //
@@ -28,9 +28,11 @@ namespace PhylogeneticMeasures {
 template< class KernelType >
 struct Common_branch_length: public KernelType::Measure_base_bimodal
 {
-  typedef KernelType                             Kernel;
+ public:
+
+  typedef KernelType                              Kernel;
   typedef typename Kernel::Measure_base_bimodal  Base;
-  typedef Common_branch_length<Kernel>           Self;
+  typedef Common_branch_length<Kernel>            Self;
   typedef typename Kernel::Number_type           Number_type;
   typedef typename Kernel::Numeric_traits        Numeric_traits;
   typedef typename Numeric_traits::Square_root   Square_root;
@@ -41,8 +43,37 @@ struct Common_branch_length: public KernelType::Measure_base_bimodal
   typedef typename Kernel::Exception_type        Exception_type;
   typedef typename Kernel::Exception_functor     Exception_functor; 
 
+ public:
+
   Common_branch_length(Tree_type &tree)
   { p_tree = &tree;}
+
+  Self& operator=(const Self& d)
+  {
+    Base::operator=(d);
+    this->p_tree = d.p_tree;
+    
+    _hypergeom_a.clear();
+    _hypergeom_b.clear();
+
+    for(int i=0; i<d._hypergeom_a.size(); i++)
+      this->_hypergeom_a.push_back(d._hypergeom_a[i]);
+
+    for(int i=0; i<d._hypergeom_b.size(); i++)
+      this->_hypergeom_b.push_back(d._hypergeom_b[i]);
+
+    this->_sample_size_a = d._sample_size_a;
+    this->_sample_size_b = d._sample_size_b;
+    this->_number_of_leaves = d._number_of_leaves;
+
+    return *this;
+  }
+
+  Tree_type& tree(void)
+  { return *p_tree;}
+
+  Tree_type* tree_pointer(void)
+  { return p_tree;}
 
  private:
 
@@ -216,6 +247,8 @@ struct Common_branch_length: public KernelType::Measure_base_bimodal
   void read_sample_size_pairs_from_file(char *filename, OutputIterator ot)
   { this->_read_sample_size_pairs_from_file(filename, *p_tree, ot); }
 
+  bool is_symmetric()
+  { return true;} 
 
   // Computes all together the probability values f(x) = \binom{x}{r}/\binom{s}{r}
 

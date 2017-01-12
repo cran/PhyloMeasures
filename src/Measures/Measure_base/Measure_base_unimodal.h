@@ -1,5 +1,5 @@
 //////////////////////////////////////////////////////////////////////////////////
-//    Copyright (C) 2015,  Constantinos Tsirogiannis.  Email: analekta@gmail.com
+//    Copyright (C) 2016,  Constantinos Tsirogiannis.  Email: tsirogiannis.c@gmail.com
 //
 //    This file is part of PhyloMeasures.
 //
@@ -28,14 +28,37 @@ namespace PhylogeneticMeasures {
 template< class KernelType >
 struct Measure_base_unimodal
 {
-  typedef KernelType                          Kernel;
-  typedef typename Kernel::Number_type        Number_type;
-  typedef typename Kernel::Exception_type     Exception_type;
-  typedef typename Kernel::Exception_functor  Exception_functor; 
+  typedef KernelType                                        Kernel;
+  typedef Measure_base_unimodal<Kernel>                     Self;
+  typedef typename Kernel::Number_type                      Number_type;
+  typedef typename Kernel::Distribution_type                Distribution_type;
+  typedef typename Kernel::Exception_type                   Exception_type;
+  typedef typename Kernel::Exception_functor                Exception_functor;
+  typedef typename Kernel::Uniform_sampler                  Uniform_sampler;  
+  typedef typename Kernel::Sequential_sampler               Sequential_sampler;  
+  typedef typename Kernel::Incremental_Monte_Carlo_handler  Incremental_Monte_Carlo_handler;  
 
  public: 
  
-  Measure_base_unimodal(){}
+  Measure_base_unimodal():_seed(0),_distribution(Kernel::UNIFORM_FIXED_SIZE){}
+
+  void set_probability_distribution( Distribution_type distrib )
+  { _distribution = distrib; }
+
+  Distribution_type probability_distribution() const
+  { return _distribution; }
+
+  Self& operator=(const Self& d)
+  {
+    _distribution = d.probability_distribution();
+    return *this;
+  }
+
+  int seed() const
+  { return _seed;}
+
+  void set_seed(int seed)
+  { _seed = seed; }
   
  protected:
 
@@ -57,6 +80,9 @@ struct Measure_base_unimodal
   template <class TreeType, class Measure>
   Number_type _list_query(TreeType &tree, char* filename, Measure &msr);
 
+
+  void read_csv_matrix(const char *filename, std::vector<std::string> &names, 
+                       std::vector< std::vector<bool> > &matrix);
 
   // Input: A tree, an array with the species names in the tree and a matrix such that: each column corresponds 
   // to one of these species and each row indicates a sample of these species for we want to compute the
@@ -92,7 +118,95 @@ struct Measure_base_unimodal
   // is the (standardised) value of the measure for the sample that is described in the i-th row of the input matrix.
   template <class TreeType, class Measure, class OutputIterator>
   int _csv_matrix_query( TreeType &tree, char *filename, Measure &msr, bool standardised, OutputIterator ot );
+
+
+  template < class TreeType, class Measure, class OutputIterator>
+  int _matrix_query_Poisson_binomial_fixed_size( TreeType &tree, std::vector<std::string> &names, 
+                                                 std::vector< std::vector<bool> > &matrix,
+                                                 Measure &msr, bool standardised, OutputIterator ot );
+
+  template < class TreeType, class Measure, class OutputIterator>
+  int _csv_matrix_query_Poisson_binomial_fixed_size( TreeType &tree, char *filename, Measure &msr, 
+                                                      bool standardised, OutputIterator ot );
+
+  // Uses Monte-Carlo methods
+  template < class TreeType, class Measure, class OutputIterator>
+  int _matrix_query_sequential_fixed_size( TreeType &tree, std::vector<std::string> &names, 
+                                           std::vector< std::vector<bool> > &matrix,
+                                           Measure &msr, bool standardised, 
+                                           OutputIterator ot, int repetitions=1000);
+
+  // Uses Monte-Carlo methods
+  template < class TreeType, class Measure, class OutputIterator>
+  int _csv_matrix_query_sequential_fixed_size( TreeType &tree, char *filename, Measure &msr, 
+                                               bool standardised, OutputIterator ot, int repetitions=1000);
+  
+  template < class TreeType, class Measure, class OutputIterator>
+  int _matrix_query_weighted( TreeType &tree, std::vector<std::string> &names, 
+                               std::vector< std::vector<bool> > &matrix,
+                               Measure &msr, bool standardised, OutputIterator ot, int repetitions=1000 )
+  {
+    if(msr.probability_distribution() == Kernel::POISSON_BINOMIAL_FIXED_SIZE)
+      return _matrix_query_Poisson_binomial_fixed_size( tree, names, matrix, msr, standardised, ot);
+    else if(msr.probability_distribution() == Kernel::SEQUENTIAL_FIXED_SIZE)
+      return _matrix_query_sequential_fixed_size( tree, names, matrix, msr, standardised, ot, repetitions);
+    else
+      return 0;
+  }
+
+  template < class TreeType, class Measure, class OutputIterator>
+  int _csv_matrix_query_weighted( TreeType &tree, char *filename, Measure &msr, 
+                                   bool standardised, OutputIterator ot, int repetitions=1000 )
+  {
+    if(msr.probability_distribution() == Kernel::POISSON_BINOMIAL_FIXED_SIZE)
+      return _csv_matrix_query_Poisson_binomial_fixed_size( tree, filename, msr, standardised, ot);
+    else if(msr.probability_distribution() == Kernel::SEQUENTIAL_FIXED_SIZE)
+      return _csv_matrix_query_sequential_fixed_size( tree, filename, msr, standardised, ot, repetitions);
+    else
+      return 0;
+  }
+
+  /////////////////////////////////////
+  // Functions that compute p-values // 
+  /////////////////////////////////////
+
+  // Uses Monte-Carlo methods
+  template < class TreeType, class Measure, class OutputIterator>
+  int _pvalues_query_uniform_fixed_size( TreeType &tree, std::vector<std::string> &names, 
+                                         std::vector< std::vector<bool> > &matrix,
+                                         Measure &msr, OutputIterator ot, int repetitions=1000);
+
+  // Uses Monte-Carlo methods
+  template < class TreeType, class Measure, class OutputIterator>
+  int _csv_pvalues_query_uniform_fixed_size( TreeType &tree, const char *filename, Measure &msr, 
+                                             OutputIterator ot, int repetitions=1000);
+
+  // Uses Monte-Carlo methods
+  template < class TreeType, class Measure, class OutputIterator>
+  int _pvalues_query_sequential_fixed_size( TreeType &tree, std::vector<std::string> &names, 
+                                            std::vector< std::vector<bool> > &matrix,
+                                            Measure &msr, OutputIterator ot, int repetitions=1000);
+
+  // Uses Monte-Carlo methods
+  template < class TreeType, class Measure, class OutputIterator>
+  int _csv_pvalues_query_sequential_fixed_size( TreeType &tree, const char *filename, Measure &msr, 
+                                                OutputIterator ot, int repetitions=1000);
+
+  ////////////////////////////////////
+  // Functions that compute moments // 
+  ////////////////////////////////////
+
+  // Uses Monte-Carlo methods
+  template < class Measure, class OutputIterator>
+  void _compute_moments_sequential_fixed_size( Measure &msr, int sample_size, 
+                                               OutputIterator ot_a, OutputIterator ot_b, 
+                                               int repetitions=1000);
+
+ private:
     
+  Distribution_type        _distribution;
+  int                     _seed;
+
 }; // Measure_base_unimodal
 
 } // namespace PhylogeneticMeasures

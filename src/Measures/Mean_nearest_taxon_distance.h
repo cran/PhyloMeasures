@@ -1,5 +1,5 @@
 //////////////////////////////////////////////////////////////////////////////////
-//    Copyright (C) 2015,  Constantinos Tsirogiannis.  Email: analekta@gmail.com
+//    Copyright (C) 2016,  Constantinos Tsirogiannis.  Email: tsirogiannis.c@gmail.com
 //
 //    This file is part of PhyloMeasures.
 //
@@ -35,13 +35,36 @@ struct Mean_nearest_taxon_distance: public KernelType::Measure_base_unimodal
   typedef typename Tree_type::Node_type                        Node_type;
   typedef typename Kernel::Numeric_traits                      Numeric_traits;
   typedef typename Numeric_traits::Square_root                 Square_root;
+  typedef typename Kernel::Distribution_type                   Distribution_type;
   typedef typename Kernel::Edge_relation_type                  Edge_relation_type;
+
+  typedef typename Kernel::Poisson_binomial_moments_Mean_nearest_taxon_distance 
+                                                                 Poisson_moments_functor;
 
   typedef typename Kernel::Exception_type                      Exception_type;
   typedef typename Kernel::Exception_functor                   Exception_functor;
 
+  struct Data_type{};
+
+ public:
+
   Mean_nearest_taxon_distance(Tree_type &tree)
-  { p_tree = &tree;}
+  { 
+    p_tree = &tree;
+    _max_subtree_path_costs.assign(p_tree->number_of_nodes(),Number_type(0.0));
+  }
+
+  Tree_type& tree(void)
+  { return *p_tree;}
+
+  Tree_type* tree_pointer(void)
+  { return p_tree;}
+
+  Data_type auxiliary_data() const
+  { return Data_type();}
+
+  void set_auxiliary_data(const Data_type &dt)
+  {}
 
  private:
 
@@ -88,9 +111,53 @@ struct Mean_nearest_taxon_distance: public KernelType::Measure_base_unimodal
 
  public:
 
+
+  Number_type reference_value()
+  {
+    Number_type val(-1.0);
+
+    for(int i=0; i<p_tree->number_of_nodes(); i++)
+      if( p_tree->node(i).distance > Number_type(0.0) && 
+          ( val <= Number_type(0.0) || p_tree->node(i).distance < val ) )
+        val = p_tree->node(i).distance;
+
+    return val;
+  }
+
   template< class RangeIterator >
   Number_type operator()( RangeIterator rbegin, RangeIterator rend,
                           int min_index, int max_index );
+
+
+  template< class OutputIterator >
+  void incremental_operator_non_ultrametric
+  ( std::vector<int> &sample, std::vector<int> &sample_sizes, OutputIterator ot );
+
+  template < class OutputIterator >
+  void incremental_operator_ultrametric
+  ( std::vector<int> &sample, std::vector<int> &sample_sizes, OutputIterator ot );
+
+  template < class OutputIterator >
+  void incremental_operator( std::vector<int> &sample,
+                             std::vector<int> &sample_sizes, OutputIterator ot )
+  {
+    if(p_tree->is_ultrametric())
+      incremental_operator_ultrametric(sample,sample_sizes,ot);
+    else
+      incremental_operator_non_ultrametric(sample,sample_sizes,ot);
+  }
+
+  Number_type update_total_cost_ultrametric(int &intersection_index, int new_node_index);
+
+  void initialize_max_subtree_path_costs(int index);
+
+  void update_shortest_path_costs(int &intersection_index,int new_node_index, Number_type &total_dist);
+
+  template< class OutputIterator >  
+  void find_new_nearest_neighbours(Number_type dist, int index, OutputIterator ot, 
+                                   Number_type &distance_difference);
+
+  void update_max_subtree_path_costs(int index);
 						    
   // Input:  A range of iterators that indicate a list of species names (in std::string format).
   // Output: The value of the current measure for this set of species.
@@ -104,6 +171,17 @@ struct Mean_nearest_taxon_distance: public KernelType::Measure_base_unimodal
   Number_type list_query(char* filename)
   {return this->_list_query(*p_tree, filename, *this);}
 
+  // Function that reads a list of integers from a file,
+  // assumed to be samples sizes that are used as input
+  // for computing the expectation and deviation of a measure
+  // on a given tree. 
+  template < class OutputIterator >
+  void read_sample_sizes_from_file(char *filename, OutputIterator ot)
+  { this->_read_sample_sizes_from_file(filename, *p_tree, ot);}
+
+  ////////////////////////////////////////////////////
+  // Query functions for non-weighted computations. //
+  ////////////////////////////////////////////////////
 
   // Input: A vector with the species names from the tree, and a matrix such that: each column 
   // corresponds to one of these species, and each row indicates a sample of these species 
@@ -158,13 +236,96 @@ struct Mean_nearest_taxon_distance: public KernelType::Measure_base_unimodal
       return -1;
   }
 
-  // Function that reads a list of integers from a file,
-  // assumed to be samples sizes that are used as input
-  // for computing the expectation and deviation of a measure
-  // on a given tree. 
-  template < class OutputIterator >
-  void read_sample_sizes_from_file(char *filename, OutputIterator ot)
-  { this->_read_sample_sizes_from_file(filename, *p_tree, ot);}
+  //////////////////////////////////////////////////////////
+  // Query functions for weighted computations.           //
+  // The standardised versions of these measures          //
+  // are calculated based on the probability              //
+  // distribution which is stored as a flag               //
+  // in this measure object (probability_distribution()). // 
+  //////////////////////////////////////////////////////////
+
+  // Input: A vector with the species names from the tree, and a matrix such that: each column 
+  // corresponds to one of these species, and each row indicates a sample of these species 
+  // for which we want to compute the distance measure. A certain species is considered as 
+  // part of the i-th sample if in the i-th row of the matrix there is a '1' at the column
+  // that corresponds to this species (otherwise there is a '0').
+
+  // The last argument is an output iterator of the type std::back_insert_iterator<std::vector< Number_type > >.
+  // Output: A vector of numbers (passed in the form of an outputiterator), where the i-th number
+  // is the value of the measure for the sample that is described in the i-th row of the input matrix.
+  template <class OutputIterator>
+  int matrix_query_weighted_basic(std::vector<std::string> &names, 
+                                  std::vector< std::vector<bool> > &matrix, OutputIterator ot )
+  {return this->_matrix_query_weighted(*p_tree, names, matrix, *this, false, ot);}
+
+
+  // Same as the function above except that the returned values distance values have been "standardised":
+  // from each value we have subtracted the mean value of the measure among all samples of leaves of the
+  // same size, and we have divided the result by the deviation.
+  template <class OutputIterator>
+  int matrix_query_weighted_standardised(std::vector<std::string> &names, 
+                                         std::vector< std::vector<bool> > &matrix, 
+                                         OutputIterator ot, int repetitions=1000 )
+  {
+    if(p_tree->is_ultrametric() == true || this->probability_distribution() != Kernel::UNIFORM_FIXED_SIZE)
+      return this->_matrix_query_weighted(*p_tree, names, matrix, *this, true, ot,repetitions);
+    else 
+      return -1;
+  }
+
+
+  // Input: A csv file which stores a matrix where each column corresponds to a species of the tree
+  // and each row indicates a sample of these species for which we want to compute the
+  // distance measure. A certain species is considered as part of the i-th sample if in the i-th row 
+  // of the matrix there is a '1' at the column that corresponds to this species (otherwise there is a '0').
+
+  // The second argument is an output iterator of the type std::back_insert_iterator<std::vector< Number_type > >.
+  // Output: A vector of numbers (passed in the form of an outputiterator), where the i-th number
+  // is the value of the measure for the sample that is described in the i-th row of the input matrix.
+  template <class OutputIterator>
+  int csv_matrix_query_weighted_basic(char *filename, OutputIterator ot )
+  {return this->_csv_matrix_query_weighted(*p_tree, filename, *this, false, ot);}
+
+
+  // Same as the function above except that the returned values distance values have been "standardised":
+  // from each value we have subtracted the mean value of the measure among all samples of leaves of the
+  // same size, and we have divided the result by the deviation.
+  template <class OutputIterator>
+  int csv_matrix_query_weighted_standardised(char *filename, OutputIterator ot, int repetitions=1000 )
+  {
+    if(p_tree->is_ultrametric() == true || this->probability_distribution() != Kernel::UNIFORM_FIXED_SIZE)
+      return this->_csv_matrix_query_weighted(*p_tree, filename, *this, true, ot, repetitions);
+    else 
+      return -1;
+  }
+
+  /////////////////////////////////////
+  // Functions that compute p-values //
+  /////////////////////////////////////
+
+  // Uses Monte-Carlo methods
+  template <class OutputIterator>
+  int pvalues_query_uniform_fixed_size( std::vector<std::string> &names, 
+                                        std::vector< std::vector<bool> > &matrix,
+                                        OutputIterator ot, int repetitions=1000)
+  { return this->_pvalues_query_uniform_fixed_size( *p_tree, names, matrix,*this, ot, repetitions); }
+
+  // Uses Monte-Carlo methods
+  template <class OutputIterator>
+  int csv_pvalues_query_uniform_fixed_size(const char *filename, OutputIterator ot, int repetitions=1000)
+  { return this->_csv_pvalues_query_uniform_fixed_size( *p_tree, filename, *this, ot, repetitions); }
+
+  // Uses Monte-Carlo methods
+  template <class OutputIterator>
+  int pvalues_query_sequential_fixed_size( std::vector<std::string> &names, 
+                                           std::vector< std::vector<bool> > &matrix,
+                                           OutputIterator ot, int repetitions=1000)
+  { return this->_pvalues_query_sequential_fixed_size(*p_tree, names, matrix, *this, ot, repetitions);}
+
+  // Uses Monte-Carlo methods
+  template <class OutputIterator>
+  int csv_pvalues_query_sequential_fixed_size(const char *filename, OutputIterator ot, int repetitions=1000)
+  { return this->_csv_pvalues_query_sequential_fixed_size( *p_tree, filename, *this, ot, repetitions); }
 
 
   // Computes all together the probability values f(x) = \binom{x}{r}/\binom{s}{r}
@@ -212,57 +373,57 @@ struct Mean_nearest_taxon_distance: public KernelType::Measure_base_unimodal
               Number_type(x-_sample_size+2));
   }
 
+  Number_type compute_expectation_uniform_distribution( int sample_size );
+
   Number_type compute_expectation( int sample_size );
 
-  Number_type compute_variance( int sample_size, Number_type expect = Number_type(-1.0) );
+  Number_type compute_variance_uniform_distribution
+  ( int sample_size, Number_type expect = Number_type(-1.0) );
   
-  Number_type compute_variance_slow( int sample_size, Number_type expect = Number_type(-1.0) );
+  Number_type compute_variance_uniform_distribution_slow
+  ( int sample_size, Number_type expect = Number_type(-1.0) );
 
-  Number_type compute_deviation( int sample_size, Number_type expect = Number_type(-1.0) )
-  { 
-    if( sample_size < 0 || sample_size > p_tree->number_of_leaves() )
+  Number_type compute_variance( int sample_size, Number_type expect = Number_type(-1.0) );
+
+  Number_type compute_deviation( int sample_size, Number_type expect = Number_type(-1.0) );
+
+  Number_type edge_contribution(int index, int sample_size_in_subtree, int sample_size)
+  {
+    if(!p_tree->is_ultrametric())
     {
       std::string exception_msg;
-      exception_msg += " Request to compute deviation with sample size which is out of range.\n";     
+      exception_msg += " Request to compute edge contribution on a non-ultrametric tree.\n";     
       Exception_type excp;
       excp.get_error_message(exception_msg);
       Exception_functor excf;
       excf(excp);
     }
 
-    if(!p_tree->is_ultrametric())
-      return Number_type(-1.0);
+    Node_type v = p_tree->node(index);
 
-    Number_type variance = compute_variance(sample_size, expect);   
-
-    if( variance < Number_type(0.0) ) 
-      return Number_type(0.0);
-
-    return Square_root()(variance); 
-  }
-
-  Number_type compute_deviation_slow( int sample_size, Number_type expect = Number_type(-1.0) )
-  { 
-    if( sample_size < 0 || sample_size > p_tree->number_of_leaves() )
+    if( sample_size_in_subtree < 0 || sample_size_in_subtree > v->all_subtree_leaves )
     {
       std::string exception_msg;
-      exception_msg += " Request to compute deviation with sample size which is out of range.\n";     
+      exception_msg += 
+           " Request to compute edge contribution with subtree sample size which is out of range.\n";     
       Exception_type excp;
       excp.get_error_message(exception_msg);
       Exception_functor excf;
       excf(excp);
     }
 
-    if(!p_tree->is_ultrametric())
-      return Number_type(-1.0);
-
-    Number_type variance = compute_variance_slow(sample_size, expect);   
-
-    if( variance < Number_type(0.0) ) 
+    if(p_tree->is_root(index) || sample_size_in_subtree==0)
       return Number_type(0.0);
 
-    return Square_root()(variance); 
-  }
+    if(sample_size_in_subtree>= sample_size)
+      return Number_type(0.0);
+
+    if(sample_size_in_subtree == 1)   
+      return Number_type(2.0)*Number_type(v.distance);
+
+    return Number_type(0.0);
+
+  } // Number_type edge_contribution(int index, int sample_size_in_subtree)
 
   
   private:
@@ -270,6 +431,14 @@ struct Mean_nearest_taxon_distance: public KernelType::Measure_base_unimodal
   Tree_type                *p_tree; // Stores a pointer to a phylogenetic tree object.
   std::vector<Number_type> _hypergeom; // Stores f(x) = \binom{x}{r}/\binom{s}{r}, 
                                        // x \in [ _sample_size , _number_of_leaves ]
+
+  std::vector<Number_type> _CPoisson_exps, _CPoisson_vars,
+                           _Sequential_exps, _Sequential_devs;
+
+  std::vector<Number_type> _max_subtree_path_costs; // The i-th slot of this vector stores
+                                                    // the cost of the longest simple path between
+                                                    // the node with index i and any marked leaf
+                                                    // node in its subtree.
 
   int          _sample_size;
   int          _number_of_leaves;

@@ -1,5 +1,5 @@
 //////////////////////////////////////////////////////////////////////////////////
-//    Copyright (C) 2015,  Constantinos Tsirogiannis.  Email: analekta@gmail.com
+//    Copyright (C) 2016,  Constantinos Tsirogiannis.  Email: tsirogiannis.c@gmail.com
 //
 //    This file is part of PhyloMeasures.
 //
@@ -27,7 +27,9 @@ namespace PhylogeneticMeasures
   template< class KernelType>
   struct Tree_node_bimodal: public KernelType::Unimodal_node
   {
-    typedef KernelType  Kernel;
+    typedef KernelType                       Kernel;
+    typedef typename Kernel::Unimodal_node  Base;
+    typedef Tree_node_bimodal<Kernel>        Self;
 
     bool mark_b; // Auxiliary flag
 
@@ -42,20 +44,46 @@ namespace PhylogeneticMeasures
 
     Tree_node_bimodal():mark_b(false), marked_subtree_leaves_b(0)
     {}
+
+    Self& operator=(const Self& d)
+    {
+      Base::operator=(d);
+
+      marked_children_b.clear(); 
+
+      for(int i=0; i<d.marked_children_b.size(); i++)
+        marked_children_b.push_back(d.marked_children_b[i]);
+
+      mark_b=d.mark_b; 
+      marked_subtree_leaves_b=d.marked_subtree_leaves_b;                
+
+      return *this;
+ 
+   } // operator=(const Self &d)
+
   }; // struct Tree_node_bimodal
 
   template< class AUXILIARY_TYPE >
   struct Tree_node_bimodal_augmented: 
   public Tree_node_bimodal<typename AUXILIARY_TYPE::Kernel>, public AUXILIARY_TYPE
   {
-    typedef AUXILIARY_TYPE                   Auxiliary_type;
-    typedef typename Auxiliary_type::Kernel  Kernel;
-    typedef Tree_node_bimodal<Kernel>        Base_type;
-
+    typedef AUXILIARY_TYPE                               Auxiliary_type;
+    typedef typename Auxiliary_type::Kernel             Kernel;
+    typedef Tree_node_bimodal<Kernel>                    Base_type;
+    typedef Tree_node_bimodal_augmented<Auxiliary_type>  Self;
 
     Tree_node_bimodal_augmented():Base_type(), Auxiliary_type(){}
 
-  };
+    Self& operator=(const Self& d)
+    {
+      Base_type::operator=(d);
+      Auxiliary_type::operator=(d);
+              
+      return *this;
+ 
+   } // operator=(const Self &d)
+
+  }; // Tree_node_bimodal_augmented
 
 } // namespace PhylogeneticMeasures 
 

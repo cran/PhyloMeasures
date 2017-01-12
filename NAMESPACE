@@ -1,6 +1,9 @@
 useDynLib(PhyloMeasures)
 
 import(ape)
+import(methods)
+
+importFrom("utils", "head", "tail")
 
 export(pd.query,
        mpd.query,
@@ -18,4 +21,8 @@ export(pd.query,
        mntd.moments,
        cac.moments,
        cbl.moments,
-       cd.moments)
+       cd.moments,
+       pd.pvalues,
+       mpd.pvalues,
+       mntd.pvalues,
+       cac.pvalues)

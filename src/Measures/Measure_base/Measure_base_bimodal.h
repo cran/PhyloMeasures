@@ -1,5 +1,5 @@
 //////////////////////////////////////////////////////////////////////////////////
-//    Copyright (C) 2015,  Constantinos Tsirogiannis.  Email: analekta@gmail.com
+//    Copyright (C) 2016,  Constantinos Tsirogiannis.  Email: tsirogiannis.c@gmail.com
 //
 //    This file is part of PhyloMeasures.
 //
@@ -21,6 +21,7 @@
 #define MEASURE_BASE_BIMODAL_H
 
 #include<vector>
+#include<map>
 #include<cmath>
 
 namespace PhylogeneticMeasures {
@@ -28,11 +29,36 @@ namespace PhylogeneticMeasures {
 template< class KernelType >
 struct Measure_base_bimodal
 {
-  typedef KernelType                          Kernel;
+  typedef KernelType                           Kernel;
   typedef typename Kernel::Number_type        Number_type;
   typedef typename Kernel::Exception_type     Exception_type;
   typedef typename Kernel::Exception_functor  Exception_functor; 
 
+ protected:
+
+  struct Is_smaller_pair
+  {
+    bool operator()(const std::pair<int,int>&a, const std::pair<int,int> &b)
+    {
+      if(a.first < b.first)
+        return true;
+
+      if(b.first< a.first)
+        return false;
+
+      if(a.second < b.second)
+        return true;
+
+      return false;
+    }
+
+  }; // struct Is_smaller_pair
+
+  typedef std::map<std::pair<int,int>, 
+          std::pair<Number_type, Number_type>, Is_smaller_pair>  Sizes_to_values_map;
+
+ public:
+ 
   Measure_base_bimodal(){}
 
 protected:
@@ -62,6 +88,60 @@ protected:
   template< class OutputIterator1, class OutputIterator2 >
   void _extract_queries_from_file( char *filename, OutputIterator1 ot_a, OutputIterator2 ot_b );
 
+  //////////////////////////////////////////////////////////////////
+  // New and old implementations of the two fundamental functions //
+  //////////////////////////////////////////////////////////////////
+
+  template< class TreeType, class Measure, class OutputIterator>
+  std::pair<int, int>
+  _matrix_query_internal_bimodal_new( TreeType &tree,
+                                      std::vector< std::vector<int> >  &samples_a,
+                                      std::vector< std::pair<int,int> > &min_max_a,
+                                      std::vector< std::vector<int> >  &samples_b,
+                                      std::vector< std::pair<int,int> > &min_max_b,
+                                      bool is_double_matrix, 
+                                      Measure &msr, bool standardised, OutputIterator ot);
+
+
+  template< class TreeType, class Measure, class OutputIterator>
+  std::pair<int, int>
+  _matrix_query_internal_bimodal_specific_pairs_new( TreeType &tree,  
+                                                     std::vector< std::vector<int> >  &samples_a,
+                                                     std::vector< std::pair<int,int> > &min_max_a,
+                                                     std::vector< std::vector<int> >  &samples_b,
+                                                     std::vector< std::pair<int,int> > &min_max_b,
+                                                     std::vector< std::pair<int,int> > &query_intervals_a,
+                                                     std::vector< std::pair<int,int> > &query_intervals_b,
+                                                     bool is_double_matrix, 
+                                                     Measure &msr, bool standardised, OutputIterator ot );
+
+  template< class TreeType, class Measure, class OutputIterator>
+  std::pair<int, int>
+  _matrix_query_internal_bimodal_old( TreeType &tree,
+                                      std::vector< std::vector<int> >  &samples_a,
+                                      std::vector< std::pair<int,int> > &min_max_a,
+                                      std::vector< std::vector<int> >  &samples_b,
+                                      std::vector< std::pair<int,int> > &min_max_b,
+                                      bool is_double_matrix, 
+                                      Measure &msr, bool standardised, OutputIterator ot);
+
+
+  template< class TreeType, class Measure, class OutputIterator>
+  std::pair<int, int>
+  _matrix_query_internal_bimodal_specific_pairs_old( TreeType &tree,  
+                                                     std::vector< std::vector<int> >  &samples_a,
+                                                     std::vector< std::pair<int,int> > &min_max_a,
+                                                     std::vector< std::vector<int> >  &samples_b,
+                                                     std::vector< std::pair<int,int> > &min_max_b,
+                                                     std::vector< std::pair<int,int> > &query_intervals_a,
+                                                     std::vector< std::pair<int,int> > &query_intervals_b,
+                                                     bool is_double_matrix, 
+                                                     Measure &msr, bool standardised, OutputIterator ot );
+
+  /////////////////////////////////////////////////////////////////////////////////////////
+  // Interface of the two fundamental functions (they just call the new implementations) //
+  /////////////////////////////////////////////////////////////////////////////////////////
+
   template< class TreeType, class Measure, class OutputIterator>
   std::pair<int, int>
   _matrix_query_internal_bimodal( TreeType &tree,
@@ -85,6 +165,9 @@ protected:
                                                  bool is_double_matrix, 
                                                  Measure &msr, bool standardised, OutputIterator ot );
 
+  /////////////////////////////////////////////////////////////////
+  // Functions that call the two fundamental interface functions //
+  /////////////////////////////////////////////////////////////////
 
   template< class TreeType, class Measure, class OutputIterator>
   std::pair<int, int>

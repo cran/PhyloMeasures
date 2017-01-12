@@ -1,5 +1,5 @@
 //////////////////////////////////////////////////////////////////////////////////
-//    Copyright (C) 2015,  Constantinos Tsirogiannis.  Email: analekta@gmail.com
+//    Copyright (C) 2016,  Constantinos Tsirogiannis.  Email: tsirogiannis.c@gmail.com
 //
 //    This file is part of PhyloMeasures.
 //
@@ -20,19 +20,42 @@
 #ifndef MEAN_NEAREST_TAXON_DISTANCE_NODE_TYPE_H
 #define MEAN_NEAREST_TAXON_DISTANCE_NODE_TYPE_H
 
+#include<iostream>
+
 namespace PhylogeneticMeasures 
 {
   template< class KernelType>
   struct Mean_nearest_taxon_distance_auxiliary_data
   {
-    typedef KernelType                    Kernel;
-    typedef typename Kernel::Number_type  Number_type;
+    typedef KernelType                                          Kernel;
+    typedef typename Kernel::Number_type                       Number_type;
+    typedef Mean_nearest_taxon_distance_auxiliary_data<Kernel>  Self;
 
     Number_type first_min, second_min, rest_tree_min;
 
     Mean_nearest_taxon_distance_auxiliary_data():first_min(Number_type(-1.0)), second_min(Number_type(-1.0)), 
-	                                             rest_tree_min(Number_type(-1.0)){}
-  };
+	                                         rest_tree_min(Number_type(-1.0)){}
+
+    Mean_nearest_taxon_distance_auxiliary_data(const Self& d)
+    {
+      first_min = d.first_min;
+      second_min = d.second_min;
+      rest_tree_min = d.rest_tree_min;
+             
+    } // operator=(const Self &d)
+
+    Self& operator=(const Self& d)
+    {
+      first_min = d.first_min;
+      second_min = d.second_min;
+      rest_tree_min = d.rest_tree_min;
+              
+      return *this;
+ 
+    } // operator=(const Self &d)
+
+  }; // struct Mean_nearest_taxon_distance_auxiliary_data
+
 
   template< typename KernelType>
   struct Mean_nearest_taxon_distance_node_type:

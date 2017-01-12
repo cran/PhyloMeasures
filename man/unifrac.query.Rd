@@ -33,7 +33,7 @@ unifrac.query(tree, matrix.a, matrix.b = NULL,
 \references{
 Lozupone C. and R. Knight. 2005. UniFrac: a New Phylogenetic Method for Comparing Microbial Communities. Applied and Environmental Microbiology,71(12):8228-35.}
 
-\author{Brody Sandel (brody.sandel@bios.au.dk) and Constantinos Tsirogiannis (constant@madalgo.au.dk)}
+\author{Constantinos Tsirogiannis (tsirogiannis.c@gmail.com) and Brody Sandel (bsandel@scu.edu)}
 
 \examples{
 #Load phylogenetic tree of bird families from package "ape"

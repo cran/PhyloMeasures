@@ -1,5 +1,5 @@
 //////////////////////////////////////////////////////////////////////////////////
-//    Copyright (C) 2015,  Constantinos Tsirogiannis.  Email: analekta@gmail.com
+//    Copyright (C) 2016,  Constantinos Tsirogiannis.  Email: tsirogiannis.c@gmail.com
 //
 //    This file is part of PhyloMeasures.
 //
@@ -640,8 +640,9 @@
 
   } // _extract_queries_from_file(...)
 
-////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////
+/////////////////////////// Interface functions /////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////
 
   template < class KernelType >
   template< class TreeType, class Measure, class OutputIterator>
@@ -654,6 +655,429 @@
                                   std::vector< std::pair<int,int> > &min_max_b,
                                   bool is_double_matrix, 
                                   Measure &msr, bool standardised, OutputIterator ot)
+ { return _matrix_query_internal_bimodal_new( tree, samples_a, min_max_a, samples_b, min_max_b,
+                                              is_double_matrix, msr, standardised, ot);}
+
+  template < class KernelType >
+  template< class TreeType, class Measure, class OutputIterator>
+  std::pair<int, int>
+  PhylogeneticMeasures::Measure_base_bimodal<KernelType>::
+  _matrix_query_internal_bimodal_specific_pairs( TreeType &tree,  
+                                                 std::vector< std::vector<int> >  &samples_a,
+                                                 std::vector< std::pair<int,int> > &min_max_a,
+                                                 std::vector< std::vector<int> >  &samples_b,
+                                                 std::vector< std::pair<int,int> > &min_max_b,
+                                                 std::vector< std::pair<int,int> > &query_intervals_a,
+                                                 std::vector< std::pair<int,int> > &query_intervals_b,
+                                                 bool is_double_matrix, 
+                                                 Measure &msr, bool standardised, OutputIterator ot )
+{ return _matrix_query_internal_bimodal_specific_pairs_new( tree, samples_a, min_max_a, samples_b,
+                                                            min_max_b, query_intervals_a, query_intervals_b,
+                                                            is_double_matrix, msr, standardised, ot);}
+
+////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////// Potentially faster new version /////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////
+
+  template < class KernelType >
+  template< class TreeType, class Measure, class OutputIterator>
+  std::pair<int, int>
+  PhylogeneticMeasures::Measure_base_bimodal<KernelType>::
+  _matrix_query_internal_bimodal_new( TreeType &tree,
+                                      std::vector< std::vector<int> >  &samples_a,
+                                      std::vector< std::pair<int,int> > &min_max_a,
+                                      std::vector< std::vector<int> >  &samples_b,
+                                      std::vector< std::pair<int,int> > &min_max_b,
+                                      bool is_double_matrix, 
+                                      Measure &msr, bool standardised, OutputIterator ot)
+  {
+    if(is_double_matrix)
+    {
+      std::vector<std::vector<Number_type> > basic_value_matrix;
+
+      basic_value_matrix.assign(samples_a.size(),std::vector<Number_type>());
+
+      for(int i=0; i<basic_value_matrix.size(); i++)
+        basic_value_matrix[i].assign(samples_b.size(), Number_type(0.0));
+
+      for( int i=0; i<samples_a.size(); i++ )
+        for( int j=0; j<samples_b.size(); j++ )
+          basic_value_matrix[i][j] = msr(samples_a[i].begin(), samples_a[i].end(),
+                                         samples_b[j].begin(), samples_b[j].end(),
+                                         min_max_a[i].first, min_max_a[i].second,
+                                         min_max_b[j].first, min_max_b[j].second  );
+
+      if(standardised == false)
+      {
+        for( int i=0; i<samples_a.size(); i++ )
+          for( int j=0; j<samples_b.size(); j++ )
+            *ot++ = basic_value_matrix[i][j];
+
+      } // if(standardised == false)
+      else
+      {
+        Sizes_to_values_map stm_map; 
+         
+        for( int i=0; i<samples_a.size(); i++ )
+          for( int j=0; j<samples_b.size(); j++ )
+          {
+            std::pair<int,int> spr(samples_a[i].size(), samples_b[j].size());
+            Number_type mean, deviation;
+
+            if(msr.is_symmetric() == true)
+            {
+              if(spr.first>spr.second)
+              {
+                int temp = spr.second;
+                spr.second=spr.first;
+                spr.first= temp; 
+              }
+
+            } // if(msr.is_symmetric == true)
+
+            if(stm_map.find(spr) != stm_map.end())
+            {
+              std::pair<Number_type,Number_type> vals = stm_map[spr];
+              mean=vals.first;
+              deviation=vals.second;
+ 
+            }
+            else
+            {
+              mean = msr.compute_expectation(samples_a[i].size(), samples_b[j].size() );
+              deviation = msr.compute_deviation(samples_a[i].size(), samples_b[j].size() );
+
+              std::pair<Number_type,Number_type> vals;
+               
+              vals.first = mean;
+              vals.second = deviation;        
+              stm_map[spr] = vals;
+
+            } // else of if(stm_map.find(spr) != stm_map.end())
+
+            Number_type res = basic_value_matrix[i][j];
+
+            if(deviation != Number_type(0.0))
+              *ot++ = (res-mean)/deviation;
+            else
+              *ot++ = res-mean;
+
+          } // for( int j=0; j<samples_b.size(); j++ )
+
+      } // else of if(standardised == false)
+
+      return std::make_pair(samples_a.size(), samples_b.size());
+    } // if(is_double_matrix)
+    else
+    {
+      std::vector<std::vector<Number_type> > basic_value_matrix;
+
+      basic_value_matrix.assign(samples_a.size(),std::vector<Number_type>());
+
+      for(int i=0; i<basic_value_matrix.size(); i++)
+        basic_value_matrix[i].assign(samples_a.size(), Number_type(0.0));
+
+      for( int i=0; i<samples_a.size(); i++ )
+        for( int j=0; j<=i; j++ )
+          basic_value_matrix[i][j] = msr(samples_a[i].begin(), samples_a[i].end(),
+                                         samples_a[j].begin(), samples_a[j].end(),
+                                         min_max_a[i].first, min_max_a[i].second,
+                                         min_max_a[j].first, min_max_a[j].second  );
+
+      if(msr.is_symmetric() == false)
+        for( int i=0; i<samples_a.size(); i++ )
+          for( int j=i+1; j<samples_a.size(); j++ )
+            basic_value_matrix[i][j] = msr(samples_a[i].begin(), samples_a[i].end(),
+                                           samples_a[j].begin(), samples_a[j].end(),
+                                           min_max_a[i].first, min_max_a[i].second,
+                                           min_max_a[j].first, min_max_a[j].second  ); 
+      else
+        for( int i=0; i<samples_a.size(); i++ )
+          for( int j=i+1; j<samples_a.size(); j++ )
+            basic_value_matrix[i][j] = basic_value_matrix[j][i];
+
+      if(standardised == false)
+      {
+        for( int i=0; i<samples_a.size(); i++ )
+          for( int j=0; j<samples_a.size(); j++ )
+            *ot++ = basic_value_matrix[i][j];        
+
+      } // if(standardised == false)
+      else
+      {
+        Sizes_to_values_map stm_map; 
+         
+        for( int i=0; i<samples_a.size(); i++ )
+          for( int j=0; j<samples_a.size(); j++ )
+          {
+            std::pair<int,int> spr(samples_a[i].size(), samples_a[j].size());
+            Number_type mean, deviation;
+
+            if(msr.is_symmetric() == true)
+            {
+              if(spr.first>spr.second)
+              {
+                int temp = spr.second;
+                spr.second=spr.first;
+                spr.first= temp; 
+              }
+
+            } // if(msr.is_symmetric == true)
+
+            if(stm_map.find(spr) != stm_map.end())
+            {
+              std::pair<Number_type,Number_type> vals = stm_map[spr];
+              mean=vals.first;
+              deviation=vals.second; 
+            }
+            else
+            {
+              mean = msr.compute_expectation(samples_a[i].size(), samples_a[j].size() );
+              deviation = msr.compute_deviation(samples_a[i].size(), samples_a[j].size() );
+
+              std::pair<Number_type,Number_type> vals;
+               
+              vals.first = mean;
+              vals.second = deviation;
+             
+              stm_map[spr] = vals;
+
+            } // else of if(stm_map.find(spr) != stm_map.end())
+
+            Number_type res = basic_value_matrix[i][j];
+
+            if(deviation != Number_type(0.0))
+              *ot++ = (res-mean)/deviation;
+            else
+              *ot++ = res-mean;
+
+          } // for( int j=0; j<samples_b.size(); j++ )
+
+      } // else of if(standardised == false)
+ 
+      return std::make_pair(samples_a.size(), samples_a.size());
+
+    }	// else of if(is_double_matrix)
+
+  } // _matrix_query_internal_bimodal_new(...)
+
+  template < class KernelType >
+  template< class TreeType, class Measure, class OutputIterator>
+  std::pair<int, int>
+  PhylogeneticMeasures::Measure_base_bimodal<KernelType>::
+  _matrix_query_internal_bimodal_specific_pairs_new( TreeType &tree,  
+                                                     std::vector< std::vector<int> >  &samples_a,
+                                                     std::vector< std::pair<int,int> > &min_max_a,
+                                                     std::vector< std::vector<int> >  &samples_b,
+                                                     std::vector< std::pair<int,int> > &min_max_b,
+                                                     std::vector< std::pair<int,int> > &query_intervals_a,
+                                                     std::vector< std::pair<int,int> > &query_intervals_b,
+                                                     bool is_double_matrix, 
+                                                     Measure &msr, bool standardised, OutputIterator ot )
+  {
+    for(int i=0; i<query_intervals_a.size(); i++)
+      if( query_intervals_a[i].first < 0 || query_intervals_a[i].second < 0 ||
+          query_intervals_a[i].first >= samples_a.size() || query_intervals_a[i].second >= samples_a.size() )
+      {
+        std::string exception_msg;
+        exception_msg += " An input query pair is out of range.\n";
+        Exception_type excp;
+        excp.get_error_message(exception_msg);
+        Exception_functor excf;
+        excf(excp);
+      }
+
+    if(is_double_matrix)
+    {
+      for(int i=0; i<query_intervals_b.size(); i++)
+        if( query_intervals_b[i].first < 0 || query_intervals_b[i].second < 0 ||
+            query_intervals_b[i].first >= samples_b.size() || query_intervals_b[i].second >= samples_b.size() )
+        {
+          std::string exception_msg;
+          exception_msg += " An input query pair is out of range.\n";
+          Exception_type excp;
+          excp.get_error_message(exception_msg);
+          Exception_functor excf;
+          excf(excp);
+        }
+    }
+    else
+      for(int i=0; i<query_intervals_b.size(); i++)
+        if( query_intervals_b[i].first < 0 || query_intervals_b[i].second < 0 ||
+            query_intervals_b[i].first >= samples_a.size() || query_intervals_b[i].second >= samples_a.size() )
+        {
+          std::string exception_msg;
+          exception_msg += " An input query pair is out of range.\n";
+          Exception_type excp;
+          excp.get_error_message(exception_msg);
+          Exception_functor excf;
+          excf(excp);
+        }
+
+    if(is_double_matrix)
+    {
+      if(standardised == false)
+      {
+        for( int i=0; i<query_intervals_a.size(); i++ )
+          for( int j=query_intervals_a[i].first; j<=query_intervals_a[i].second; j++ )
+            for( int k=query_intervals_b[i].first; k<=query_intervals_b[i].second; k++ )
+              *ot++ = msr(samples_a[j].begin(), samples_a[j].end(),
+                          samples_b[k].begin(), samples_b[k].end(),
+                          min_max_a[j].first, min_max_a[j].second,
+                          min_max_b[k].first, min_max_b[k].second  );
+
+      } // if(standardised == false) 
+      else 
+      {
+        Sizes_to_values_map stm_map; 
+         
+        for( int i=0; i<query_intervals_a.size(); i++ )
+          for( int j=query_intervals_a[i].first; j<=query_intervals_a[i].second; j++ )
+            for( int k=query_intervals_b[i].first; k<=query_intervals_b[i].second; k++ )
+            {
+              Number_type res = msr(samples_a[j].begin(), samples_a[j].end(),
+                                    samples_b[k].begin(), samples_b[k].end(),
+                                    min_max_a[j].first, min_max_a[j].second,
+                                    min_max_b[k].first, min_max_b[k].second  );
+
+              Number_type mean,deviation;
+
+              std::pair<int,int> spr(samples_a[j].size(), samples_b[k].size());
+
+              if(msr.is_symmetric() == true)
+              { 
+                if(spr.first>spr.second)
+                {
+                  int temp = spr.second;
+                  spr.second=spr.first;
+                  spr.first= temp; 
+                }
+
+              } // if(msr.is_symmetric == true)
+
+
+              if(stm_map.find(spr) != stm_map.end())
+              {
+                std::pair<Number_type,Number_type> vals = stm_map[spr];
+                mean=vals.first;
+                deviation=vals.second; 
+              }
+              else
+              {
+                mean = msr.compute_expectation(samples_a[j].size(), samples_b[k].size() );
+                deviation = msr.compute_deviation(samples_a[j].size(), samples_b[k].size() );
+
+                std::pair<Number_type,Number_type> vals;
+               
+                vals.first = mean;
+                vals.second = deviation;
+             
+                stm_map[spr] = vals;
+
+              } // else of if(stm_map.find(spr) != stm_map.end())
+
+              if(deviation != Number_type(0.0))
+                *ot++ = (res-mean)/deviation;
+              else
+                *ot++ = res-mean;
+                                
+            } // for( int k=query_intervals_b[i].first; k<=query_intervals_b[i].second; k++ )
+
+      } // else of if(standardised == false)
+
+      return std::make_pair(samples_a.size(), samples_b.size());
+    } // if(is_double_matrix)
+    else
+    {
+      if(standardised == false)
+      {
+        for( int i=0; i<query_intervals_a.size(); i++ )
+          for( int j=query_intervals_a[i].first; j<=query_intervals_a[i].second; j++ )
+            for( int k=query_intervals_b[i].first; k<=query_intervals_b[i].second; k++ )
+              *ot++ = msr(samples_a[j].begin(), samples_a[j].end(),
+                          samples_a[k].begin(), samples_a[k].end(),
+                          min_max_a[j].first, min_max_a[j].second,
+                          min_max_a[k].first, min_max_a[k].second  );
+      }
+      else
+      {
+        Sizes_to_values_map stm_map; 
+         
+        for( int i=0; i<query_intervals_a.size(); i++ )
+          for( int j=query_intervals_a[i].first; j<=query_intervals_a[i].second; j++ )
+            for( int k=query_intervals_b[i].first; k<=query_intervals_b[i].second; k++ )
+            {
+              Number_type res = msr(samples_a[j].begin(), samples_a[j].end(),
+                                    samples_a[k].begin(), samples_a[k].end(),
+                                    min_max_a[j].first, min_max_a[j].second,
+                                    min_max_a[k].first, min_max_a[k].second  );
+
+              Number_type mean,deviation;
+
+              std::pair<int,int> spr(samples_a[j].size(), samples_a[k].size());
+
+              if(msr.is_symmetric() == true)
+              { 
+                if(spr.first>spr.second)
+                {
+                  int temp = spr.second;
+                  spr.second=spr.first;
+                  spr.first= temp; 
+                }
+
+              } // if(msr.is_symmetric == true)
+
+
+              if(stm_map.find(spr) != stm_map.end())
+              {
+                std::pair<Number_type,Number_type> vals = stm_map[spr];
+                mean=vals.first;
+                deviation=vals.second; 
+              }
+              else
+              {
+                mean = msr.compute_expectation(samples_a[j].size(), samples_a[k].size() );
+                deviation = msr.compute_deviation(samples_a[j].size(), samples_a[k].size() );
+
+                std::pair<Number_type,Number_type> vals;
+               
+                vals.first = mean;
+                vals.second = deviation;
+             
+                stm_map[spr] = vals;
+
+              } // else of if(stm_map.find(spr) != stm_map.end())
+
+              if(deviation != Number_type(0.0))
+                *ot++ = (res-mean)/deviation;
+              else
+                *ot++ = res-mean;
+                                
+            } // for( int k=query_intervals_b[i].first; k<=query_intervals_b[i].second; k++ )
+
+      } // else of if(standardised == false)
+
+      return std::make_pair(samples_a.size(), samples_a.size());
+
+    } // else of if(is_double_matrix)
+
+  } // _matrix_query_internal_bimodal_specific_pairs_new(...)
+
+////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////// Slower older versions ////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////
+
+  template < class KernelType >
+  template< class TreeType, class Measure, class OutputIterator>
+  std::pair<int, int>
+  PhylogeneticMeasures::Measure_base_bimodal<KernelType>::
+  _matrix_query_internal_bimodal_old( TreeType &tree,
+                                      std::vector< std::vector<int> >  &samples_a,
+                                      std::vector< std::pair<int,int> > &min_max_a,
+                                      std::vector< std::vector<int> >  &samples_b,
+                                      std::vector< std::pair<int,int> > &min_max_b,
+                                      bool is_double_matrix, 
+                                      Measure &msr, bool standardised, OutputIterator ot)
   {
     if(is_double_matrix)
     {
@@ -665,7 +1089,8 @@
                         samples_b[j].begin(), samples_b[j].end(),
                         min_max_a[i].first, min_max_a[i].second,
                         min_max_b[j].first, min_max_b[j].second  );
-      }
+
+      } // if(standardised == false)
       else
       {
         for( int i=0; i<samples_a.size(); i++ )
@@ -698,8 +1123,9 @@
             *ot++ = msr(samples_a[i].begin(), samples_a[i].end(),
                         samples_a[j].begin(), samples_a[j].end(),
                         min_max_a[i].first, min_max_a[i].second,
-                        min_max_a[j].first, min_max_a[j].second  );
-      }
+                        min_max_a[j].first, min_max_a[j].second);
+
+      } // if(standardised == false)
       else
       {
         for( int i=0; i<samples_a.size(); i++ )
@@ -724,21 +1150,21 @@
 
     }	// else of if(is_double_matrix)
 
-  } // _matrix_query_internal_bimodal(...)
+  } // _matrix_query_internal_bimodal_old(...)
 
   template < class KernelType >
   template< class TreeType, class Measure, class OutputIterator>
   std::pair<int, int>
   PhylogeneticMeasures::Measure_base_bimodal<KernelType>::
-  _matrix_query_internal_bimodal_specific_pairs( TreeType &tree,  
-                                                 std::vector< std::vector<int> >  &samples_a,
-                                                 std::vector< std::pair<int,int> > &min_max_a,
-                                                 std::vector< std::vector<int> >  &samples_b,
-                                                 std::vector< std::pair<int,int> > &min_max_b,
-                                                 std::vector< std::pair<int,int> > &query_intervals_a,
-                                                 std::vector< std::pair<int,int> > &query_intervals_b,
-                                                 bool is_double_matrix, 
-                                                 Measure &msr, bool standardised, OutputIterator ot )
+  _matrix_query_internal_bimodal_specific_pairs_old( TreeType &tree,  
+                                                     std::vector< std::vector<int> >  &samples_a,
+                                                     std::vector< std::pair<int,int> > &min_max_a,
+                                                     std::vector< std::vector<int> >  &samples_b,
+                                                     std::vector< std::pair<int,int> > &min_max_b,
+                                                     std::vector< std::pair<int,int> > &query_intervals_a,
+                                                     std::vector< std::pair<int,int> > &query_intervals_b,
+                                                     bool is_double_matrix, 
+                                                     Measure &msr, bool standardised, OutputIterator ot )
   {
     for(int i=0; i<query_intervals_a.size(); i++)
       if( query_intervals_a[i].first < 0 || query_intervals_a[i].second < 0 ||
@@ -853,7 +1279,7 @@
 
     } // else of if(is_double_matrix)
 
-  } // _matrix_query_internal_bimodal_specific_pairs(...)
+  } // _matrix_query_internal_bimodal_specific_pairs_old(...)
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////

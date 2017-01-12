@@ -1,10 +1,11 @@
 \name{cbl.moments}
 \alias{cbl.moments}
 \title{
-Computes the moments of the Common Branch Length measure
+Computes the moments of the Common Branch Length measure under the uniform null model
 }
 \description{
 Calculates the mean and standard deviation of the Common Branch Length (CBL) on a given tree for several pairs of tip set sizes.
+These calculations consider equal (uniform) probability among all possible tip samples of the same richness.
 }
 \usage{
 cbl.moments(tree, sample.sizes, comp.expectation = TRUE, 
@@ -24,7 +25,7 @@ Swenson, N.G. 2011. Phylogenetic beta diversity metrics, trait evolution and inf
 
 Tsirogiannis, C. and B. Sandel. In prep. Fast computation of measures of phylogenetic beta diversity.
 }
-\author{Constantinos Tsirogiannis (constant@madalgo.au.dk)}
+\author{Constantinos Tsirogiannis (tsirogiannis.c@gmail.com)}
 
 \seealso{\code{\link{cbl.query}}
 }

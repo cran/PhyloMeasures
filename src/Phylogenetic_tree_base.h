@@ -1,5 +1,5 @@
 //////////////////////////////////////////////////////////////////////////////////
-//    Copyright (C) 2015,  Constantinos Tsirogiannis.  Email: analekta@gmail.com
+//    Copyright (C) 2016,  Constantinos Tsirogiannis.  Email: tsirogiannis.c@gmail.com
 //
 //    This file is part of PhyloMeasures.
 //
@@ -38,16 +38,16 @@ class Phylogenetic_tree_base
 {
   public:
 
-  typedef KernelType                                       Kernel;
-  typedef NodeType                                         Node_type;
-  typedef typename Kernel::Numeric_traits                  Numeric_traits;
-  typedef typename Kernel::Number_type                     Number_type;
-  typedef typename Numeric_traits::Absolute_value          Absolute_value;
-  typedef typename Numeric_traits::Is_exact                Is_exact;
-  typedef Phylogenetic_tree_base<Node_type, Kernel>        Self; 
+  typedef KernelType                                      Kernel;
+  typedef NodeType                                        Node_type;
+  typedef typename Kernel::Numeric_traits                 Numeric_traits;
+  typedef typename Kernel::Number_type                    Number_type;
+  typedef typename Numeric_traits::Absolute_value         Absolute_value;
+  typedef typename Numeric_traits::Is_exact               Is_exact;
+  typedef Phylogenetic_tree_base<Kernel,Node_type>        Self; 
 
-  typedef typename Kernel::Exception_type                  Exception_type;
-  typedef typename Kernel::Exception_functor               Exception_functor;  
+  typedef typename Kernel::Exception_type                 Exception_type;
+  typedef typename Kernel::Exception_functor              Exception_functor;  
 
 private:
 
@@ -78,6 +78,7 @@ private:
 public:
 
  typedef typename Leaves_container_type::iterator  Leaves_iterator;
+ typedef typename Leaves_container_type::const_iterator  const_Leaves_iterator;
 
 private:
 
@@ -89,6 +90,11 @@ private:
 
   int _extract_taxon_and_distance( std::string &tree_string, int index, Node_type &v);
 
+  int _create_binary_tree_over_nodes( std::vector<int> &leaves, int last_index, 
+                                       Node_type &father, std::vector<Node_type> &current_status);
+
+  bool _explore_tree(int index, std::map<std::string,int> &leaves, std::vector<bool> &visited_nodes);
+
   template <class OUTSTRM >  
   void _print_tree(OUTSTRM &outs, int index );
 
@@ -97,6 +103,10 @@ private:
   Number_type _check_if_ultrametric(int index);
 
   bool _check_if_ultrametric();
+ 
+  int _calculate_depth(int index);
+
+  int _calculate_depth();
 
   int _compute_subtree_edges( int index )
   {
@@ -113,9 +123,75 @@ private:
 
 public:
 
-  Phylogenetic_tree_base():_root_index(-1),_is_ultrametric(-1),
+  Phylogenetic_tree_base():_root_index(-1),_is_ultrametric(-1), _depth(-1),
                            _assigned_all_subtree_leaves(false),
-                           _is_ultrametric_predicate_precision(0.001){}
+                           _is_ultrametric_predicate_precision(0.01){}
+
+
+  Phylogenetic_tree_base(const Self &d)
+  {
+    this->clear();    
+ 
+    for(int i=0; i<d._container.size(); i++)
+    {
+      Node_type nd = d._container[i];
+      _container.push_back(nd);
+    }  
+
+    for(const_Leaves_iterator it=d.leaves_begin(); it != d.leaves_end(); it++)
+      _leaves[it->first] = it->second;
+
+    for(int i=0; i<d._probabilities.size(); i++)    
+      _probabilities.push_back(d._probabilities[i]);
+
+    for(int i=0; i<d._subtree_edges.size(); i++)
+      _subtree_edges.push_back(d._subtree_edges[i]);
+
+    for(int i=0; i<d._marked_nodes.size(); i++)
+      _marked_nodes.push_back(d._marked_nodes[i]);
+
+    _root_index = d._root_index;
+    _is_ultrametric = d._is_ultrametric;
+    _depth = d._depth;
+    _assigned_all_subtree_leaves = d._assigned_all_subtree_leaves;
+    _is_ultrametric_predicate_precision = d._is_ultrametric_predicate_precision;  
+
+  } // Phylogenetic_tree_base(const Self &d)
+
+  Self& operator=(const Self &d)
+  {
+    this->clear();    
+ 
+    for(int i=0; i<d._container.size(); i++)
+    {
+      Node_type nd = d._container[i];
+      _container.push_back(nd);
+    }  
+
+    for(const_Leaves_iterator it=d.leaves_begin(); it != d.leaves_end(); it++)
+      _leaves[it->first] = it->second;
+
+    for(int i=0; i<d._probabilities.size(); i++)    
+      _probabilities.push_back(d._probabilities[i]);
+
+    for(int i=0; i<d._subtree_edges.size(); i++)
+      _subtree_edges.push_back(d._subtree_edges[i]);
+
+    for(int i=0; i<d._marked_nodes.size(); i++)
+      _marked_nodes.push_back(d._marked_nodes[i]);
+
+    _root_index = d._root_index;
+    _is_ultrametric = d._is_ultrametric;
+    _depth = d._depth;
+    _assigned_all_subtree_leaves = d._assigned_all_subtree_leaves;
+    _is_ultrametric_predicate_precision = d._is_ultrametric_predicate_precision;   
+
+    return *this;
+
+  } // operator=(const Self &d)
+
+  Phylogenetic_tree_base( Phylogenetic_tree_base &ptb) 
+  { (*this) = ptb; }
 
   Node_type& node( int index)
   { return _container[index]; }
@@ -125,6 +201,11 @@ public:
 
   int number_of_leaves()
   { return _leaves.size(); }
+
+  Number_type is_ultrametric_predicate_precision(void) const
+  { 
+    return _is_ultrametric_predicate_precision;
+  }
 
   void set_is_ultrametric_predicate_precision(Number_type &is_ultrametric_predicate_precision)
   { 
@@ -139,9 +220,27 @@ public:
 
     if(_is_ultrametric == 1)
       return true;
-    
+
     return false;
   }
+
+  bool recheck_if_ultrametric()
+  { 
+    _is_ultrametric = -1;
+    return this->_check_if_ultrametric(); 
+  }
+
+  bool is_valid();
+
+  int depth()
+  {
+    if(_depth == -1)
+      _depth = _calculate_depth();
+
+    return _depth;
+  }
+
+  void convert_to_binary_tree();
 
   // Returns the index of the root node, duh.
   int root_index()
@@ -164,6 +263,12 @@ public:
   { return _leaves.begin(); }
 
   Leaves_iterator leaves_end()
+  { return _leaves.end(); }
+
+  const_Leaves_iterator leaves_begin() const
+  { return _leaves.begin(); }
+
+  const_Leaves_iterator leaves_end() const
   { return _leaves.end(); }
 
   Leaves_iterator find_leaf(std::string &name)
@@ -217,8 +322,14 @@ public:
     return _assign_subtree_leaves(index,false);
   }
 
+  int assign_all_subtree_leaves()
+  { return assign_all_subtree_leaves(_root_index); }
+
   int number_of_marked_nodes()
   { return _marked_nodes.size(); }
+
+  void insert_marked_node(int index)
+  { _marked_nodes.push_back(index);}
 
   int marked_node(int i)
   { return _marked_nodes[i]; }
@@ -238,6 +349,14 @@ public:
   template< class RangeIterator >
   Number_type mark_Steiner_tree_of_sample(RangeIterator rbegin, RangeIterator rend );
 
+  // The next function returns the increase in the cost (not the total cost) of the 
+  // marked Steiner tree if we add a new node, that is the node indicated by 'new_node_index'.
+  // Precondition: 'intersection_index' indicates the root of the current
+  // Steiner tree, that is the tree before the addition of the new node.
+  // The function may change the value of its first argument, which happens
+  // in the case that the root of the Steiner tree changes.
+  Number_type update_marked_Steiner_tree(int &intersection_index, int new_node_index);
+
   template< class RangeIterator >
   void unmark_Steiner_tree_of_sample(RangeIterator rbegin, RangeIterator rend );
 
@@ -252,7 +371,16 @@ public:
                                                            std::vector<Number_type> &outside_subtree_costs);
 
   int compute_number_of_distance_violations();
+
+  void set_leaf_probability_values(std::vector<std::string> &names, 
+                                   std::vector< Number_type > &p);
   
+  Number_type node_probability(int index)
+  { return _probabilities[index]; }
+
+  bool stores_probability_values()
+  { return (_probabilities.size() != 0);}
+
   ///////////////////////////////////////////////////////
   // Functions that are used for handling strings that // 
   // represent trees in the Newick format.             //
@@ -273,22 +401,39 @@ public:
                                 std::vector<Number_type> &edge_weights, 
                                 std::vector<std::string> &species_names);
 
+
+  void read_abundance_weights_from_file(char *filename);
+
   template <class OUTSTRM >  
   void print_tree(OUTSTRM &outs);
 
+
   void print_tree()
   { print_tree(std::cout); }
+
+  template <class OUTSTRM >  
+  void print_subtree_of_node(OUTSTRM &outs, int index);
+
+  void print_subtree_of_node(int index)
+  { print_subtree_of_node(std::cout, index); }
+
+  int print_subtree_of_approx_k_leaves(int k);
 
   void clear()
   {    
     _container.clear();
     _leaves.clear();
+    _probabilities.clear();
+    _subtree_edges.clear();
+    _marked_nodes.clear();
     _root_index=-1;
     _is_ultrametric = -1; 
     _assigned_all_subtree_leaves = false;
+    _depth=-1;
+    _is_ultrametric_predicate_precision=Number_type(0.01);
   }
 
-private:
+protected:
 
   std::vector<Node_type> _container;  // Vector that stores all the tree nodes in post-order
                                       // (except the root which is the last element of the vector).
@@ -298,10 +443,22 @@ private:
                                      // TODO: Check if standard library string
                                      // comparison predicate is faster.
 
+  std::vector<Number_type> _probabilities; // Stores the probability value for each of the leaf nodes,
+                                           // to serve computations in the Poisson Binomial model. 
+                                           // If the uniform probability model is used, this vector
+                                           // remains empty. Otherwise, the vector stores one value
+                                           // for each node in the tree (to maintain constant access 
+                                           // time); for internal nodes the corresponding values are 
+                                           // set to minus one.
+
   int  _root_index; // Index to root node;
   int  _is_ultrametric; // Indicates if the tree is ultrametric: 
                         // that means all simple paths from the root to leaf nodes 
 						// in the tree have the same cost.
+
+  int _depth; // Stores the depth of the tree, that is maximum number of edges
+              // that appear on a simple path between the root and a leaf node.
+
 
   std::vector<int> _subtree_edges; // this vector stores for every tree edge
                                    // the number of edges that appear in its

@@ -1,14 +1,14 @@
 \name{cd.query}
 \alias{cd.query}
 \title{
-Computes the (standardised) value of the Community Distance measure
+Computes the (standardized) value of the Community Distance measure
 }
 \description{
-Calculates the Community Distance (CD) given paired sets of tips on a phylogeny. The Community Distance is the beta diversity version of Mean Pairwise Distance (MPD), giving the average phylogenetic distance between two communities. The same function can also calculate the standardised value of this measure for the given tip sets.
+Calculates the Community Distance (CD) given paired sets of tips on a phylogeny. The Community Distance is the beta diversity version of Mean Pairwise Distance (MPD), giving the average phylogenetic distance between two communities. The same function can also calculate the standardized value of this measure for the given tip sets. The standardized calculations consider equal (uniform) probability among all possible tip samples of the same richness.
 }
 \usage{
 cd.query(tree, matrix.a, matrix.b = NULL, 
-         query.matrix = NULL, is.standardised = FALSE)
+         query.matrix = NULL, standardize = FALSE)
 }
 \arguments{
   \item{tree}{A phylo tree object}
@@ -26,8 +26,8 @@ cd.query(tree, matrix.a, matrix.b = NULL,
                       in the second column. If matrix.b is given, the function computes the CD value between the 
                       k-th row of matrix.a and the r-th row of matrix.b. If matrix.b is not given,
                       the function computes the CD value between the k-th and r-th row of matrix.a (default = NULL)}
-  \item{is.standardised}{Specifies whether the function should return the standardised value of the CD for each sample pair.
-The value is standardised by subtracting the mean and dividing by the standard deviation of the CD. The mean and standard deviation are calculated among all tip sets that have the same number of elements as the two samples (default = FALSE)}
+  \item{standardize}{Specifies whether the function should return the standardized value of the CD for each sample pair.
+The value is standardized by subtracting the mean and dividing by the standard deviation of the CD. The mean and standard deviation are calculated among all tip sets that have the same number of elements as the two samples (default = FALSE)}
 }
 \details{Queries can be given in four ways. If neither matrix.b nor query.matrix are given, the function computes the CD values for all pairs of rows (tip sets) in matrix.a . If matrix.b is given but not query.matrix, the function computes the CD values for all combinations of a row in matrix.a with rows in matrix.b. If query.matrix is given and matrix.b is not, the function returns the CD values for the pairs of rows in matrix.a specified by query.matrix. If query.matrix and matrix.b are both given, CD values are computed for the rows in matrix.a specified by the first column of query.matrix against the rows in matrix.b specified in the second column of query.matrix.}
 \value{The CD values for the requested pairs of tip sets. If query.matrix is provided, then the values are returned in an one-dimensional vector. The i-th element of this vector is the CD value for the pair of tip sets 
@@ -39,7 +39,7 @@ Graham, C.H. and P.V.A. Fine. 2008. Phylogenetic beta diversity: linking ecologi
 Swenson, N.G. 2011. Phylogenetic beta diversity metrics, trait evolution and inferring functional beta diversity of communities. PLoS ONE: 6: e21264.
 
 Tsirogiannis, C. and B. Sandel. In prep. Fast computation of measures of phylogenetic beta diversity.}
-\author{Constantinos Tsirogiannis (constant@madalgo.au.dk)}
+\author{Constantinos Tsirogiannis (tsirogiannis.c@gmail.com)}
 
 \seealso{\code{\link{cd.moments}}
 }
@@ -64,7 +64,7 @@ cd.query(bird.families, comm[1:2,],comm)
 qm = expand.grid(1:2,1:10)
 cd.query(bird.families,comm,query.matrix = qm) 
 
-#Calculate standardised versions
-cd.query(bird.families,comm,is.standardised = TRUE)    
+#Calculate standardized versions
+cd.query(bird.families,comm,standardize = TRUE)    
 }
 

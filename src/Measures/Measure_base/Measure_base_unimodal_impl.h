@@ -1,5 +1,5 @@
 //////////////////////////////////////////////////////////////////////////////////
-//    Copyright (C) 2015,  Constantinos Tsirogiannis.  Email: analekta@gmail.com
+//    Copyright (C) 2016,  Constantinos Tsirogiannis.  Email: tsirogiannis.c@gmail.com
 //
 //    This file is part of PhyloMeasures.
 //
@@ -193,22 +193,15 @@
   
   } // list_query(TreeType &tree, char* filename)
 
-  
-  // Input: A csv file which stores a matrix where each column corresponds to a species of the tree
-  // and each row indicates a sample of these species for we want to compute the
-  // distance measure. A certain species is considered as part of the i-th sample if in the i-th row 
-  // of the matrix there is a '1' at the column that corresponds to this species (otherwise a '0').
+  // Input: a file name that stores a presence/absence csv matrix.
+  // Output: a vector of std::strings storing the column names of the matrix,
+  // and a 2D boolean matrix storing the actual matrix entries. 
 
-  // The second argument is an output iterator of the type std::back_insert_iterator<std::vector< Number_type > >.
-  // Output: A vector of numbers (passed in the form of an outputiterator), where the i-th number
-  // is the value of the measure for the sample that is described in the i-th row of the input matrix.
-  
   template < class KernelType >  
-  template < class TreeType, class Measure, class OutputIterator>
-  int PhylogeneticMeasures::Measure_base_unimodal<KernelType>::
-  _csv_matrix_query( TreeType &tree, char *filename, Measure &msr, bool standardised, OutputIterator ot )
+  void PhylogeneticMeasures::Measure_base_unimodal<KernelType>::
+  read_csv_matrix(const char *filename, std::vector<std::string> &names, 
+                  std::vector< std::vector<bool> > &matrix)
   {
-    typedef TreeType Tree_type;
     std::ifstream in(filename);
 
     if( !( in.is_open() && in.good() ) )
@@ -218,18 +211,18 @@
       excp.get_error_message(exception_msg);
       Exception_functor excf;
       excf(excp);
-    }
+    }    
+
+    names.clear();
+
+    for(int i=0; i<matrix.size(); i++)
+      matrix[i].clear();
+  
+    matrix.clear();
 
     // Read the first row, the one that contains the species names
 
-    std::vector<std::string> names;
-    std::vector<int>   column_to_node_vec;
     std::string line;
-    std::vector<Number_type> mean_values, deviation_values;
-
-    mean_values.assign(tree.number_of_leaves()+1, Number_type(-1.0));
-    deviation_values.assign(tree.number_of_leaves()+1, Number_type(-1.0));
-
     char a;
 
     std::getline(in,line);
@@ -252,67 +245,25 @@
         names.push_back(str);
 
       c++;
-    }
 
-    if(names.size() < tree.number_of_leaves())
-    {
-      std::string warning(" Warning: the input matrix has fewer columns than the number of species in the tree.");
-      Exception_functor().issue_warning(warning);
-    }
+    } // while(c < line.size() )
 
-    std::vector<bool> checked_names;
-    checked_names.assign(tree.number_of_nodes(),false);
+    std::vector<bool> initialized_row;
 
-    for( int i=0; i<names.size(); i++ )
-    {
-      typename Tree_type::Leaves_iterator lv_it = tree.find_leaf(names[i]);
-
-      if( lv_it == tree.leaves_end() )
-      {
-        std::string exception_msg;
-        exception_msg += " One of the species names in the input matrix was not found in the tree (";
-        exception_msg += names[i];
-        exception_msg += ") \n";
-        Exception_type excp;
-        excp.get_error_message(exception_msg);
-        Exception_functor excf;
-        excf(excp);
-      }
-      else
-      { 
-        if(checked_names[(*lv_it).second] == true)
-        {
-          std::string exception_msg;
-          exception_msg += " Two or more columns of the input matrix share the same species name (";
-          exception_msg += (*lv_it).first;
-          exception_msg += ") \n";  
-          Exception_type excp;
-          excp.get_error_message(exception_msg);
-          Exception_functor excf;
-          excf(excp);
-        } 
-        else
-          checked_names[(*lv_it).second] = true;
-
-      } // else of if( lv_it == tree.leaves_end() ) 
-
-      column_to_node_vec.push_back((*lv_it).second);
-
-    } // for( int i=0; i<names.size(); i++ )
-     
-    // Read the rest of the matrix, executing a query per line.
-
-    int number_of_queries=0;
+    initialized_row.assign(names.size(),false);
 
     while( in.good() )
     {
       line.clear();
 
       int count=0, start=0;
-      std::vector<int> query_nodes;
-      int min = tree.number_of_nodes(), max = -1;
 
       std::getline(in,line);
+
+      if(!in.good())
+        break;
+
+      matrix.push_back(initialized_row);
 
       // Exclude the first word of the line if first character is not zero or one.
 
@@ -336,13 +287,7 @@
             excf(excp);
           }
 
-          query_nodes.push_back( column_to_node_vec[count] );
-
-          if( query_nodes.back() < min )
-            min = query_nodes.back();
-
-          if( query_nodes.back() > max )
-            max = query_nodes.back();
+          matrix.back()[count] = true;
 
           count++;
         }
@@ -372,43 +317,25 @@
 
       } // for( int i=start; i<line.size(); i++)
 
-      if( in.good() )
-      {
-        number_of_queries++;       
-
-        if( query_nodes.size() < 1 )
-          *ot++ = 0.0;
-        else
-        {
-          Number_type single_sample_result = msr(query_nodes.begin(), query_nodes.end(), min, max );
-
-          if(standardised == false)  
-            *ot++ = single_sample_result;
-          else
-          {
-            if(mean_values[query_nodes.size()] == Number_type(-1.0))
-            {
-              mean_values[query_nodes.size()] = msr.compute_expectation(query_nodes.size());
-              deviation_values[query_nodes.size()] = msr.compute_deviation(query_nodes.size());
-            }  
-
-            if(deviation_values[query_nodes.size()]==Number_type(0.0))
-              *ot++ = single_sample_result - mean_values[query_nodes.size()];
-            else
-              *ot++ = (single_sample_result - mean_values[query_nodes.size()])/deviation_values[query_nodes.size()];
-          }
-          
-        } // else of if( query_nodes.size() < 1 )
-
-      } // if( in.good() )
-
     } // while( in.good() )
 
     in.close();
-    return number_of_queries;
 
-  } // csv_matrix_query( ... )
+  } // read_csv_matrix(...)
 
+
+  // Input: A phylogenetic tree, a vector of std::strings storing species names, a boolean 2D matrix, and a 
+  // distance measure. The j-th column of the matrix corresponds to a species in the tree 
+  // (its name stored in the j-th entry of the names vector), and each row indicates a sample 
+  // of these species for we want to compute the distance measure. A certain species is considered 
+  // as part of the i-th sample if in the i-th row of the matrix there is a '1' at the column 
+  // that corresponds to this species (otherwise a '0').
+
+  // The last two arguments are boolean that indicates if it is required to compute the standardized
+  // value of the measure, and an output iterator of the type:
+  // std::back_insert_iterator<std::vector< Number_type > >.
+  // Output: A vector of numbers (passed in the form of an outputiterator), where the i-th number
+  // is the value of the measure for the sample that is described in the i-th row of the input matrix.
   
   template < class KernelType >  
   template < class TreeType, class Measure, class OutputIterator>
@@ -518,5 +445,465 @@
     return matrix.size();
 
   } // _matrix_query( ... )
+
+
+  // Input: A csv file which stores a matrix where each column corresponds to a species of the tree
+  // and each row indicates a sample of these species for we want to compute the
+  // distance measure. A certain species is considered as part of the i-th sample if in the i-th row 
+  // of the matrix there is a '1' at the column that corresponds to this species (otherwise a '0').
+
+  // The second argument is an output iterator of the type: 
+  //  std::back_insert_iterator<std::vector< Number_type > >.
+  // Output: A vector of numbers (passed in the form of an outputiterator), where the i-th number
+  // is the value of the measure for the sample that is described in the i-th row of the input matrix.
+  
+  template < class KernelType >  
+  template < class TreeType, class Measure, class OutputIterator>
+  int PhylogeneticMeasures::Measure_base_unimodal<KernelType>::
+  _csv_matrix_query( TreeType &tree, char *filename, Measure &msr, 
+                     bool standardised, OutputIterator ot )
+  {
+    std::vector<std::string> names;
+    std::vector<std::vector<bool> > matrix;
+
+    this->read_csv_matrix(filename,names,matrix);
+    return _matrix_query(tree, names, matrix, msr, standardised, ot);
+
+  } // csv_matrix_query( ... )
+
+
+  // Input: A phylogenetic tree, a vector of std::strings storing species names, a boolean 2D matrix, and a 
+  // distance measure. The j-th column of the matrix corresponds to a species in the tree 
+  // (its name stored in the j-th entry of the names vector), and each row indicates a sample 
+  // of these species for we want to compute the distance measure. A certain species is considered 
+  // as part of the i-th sample if in the i-th row of the matrix there is a '1' at the column 
+  // that corresponds to this species (otherwise a '0').
+
+  // The last two arguments are boolean that indicates if it is required to compute the standardized
+  // value of the measure, and an output iterator of the type:
+  // std::back_insert_iterator<std::vector< Number_type > >.
+  // Output: A vector of numbers (passed in the form of an outputiterator), where the i-th number
+  // is the value of the measure for the sample that is described in the i-th row of the input matrix.
+  // If the 'standardised' argument is set to true then the returned values are  standardised values
+  // of the measure for each row sample according to the Poisson binomial fixed-size distribution.
+
+
+  // Precondition I: the leaves of the input tree store the probability values which are needed for
+  // this distribution.
+
+  // Precondition II: the probability_distribution of the input measure object is set to
+  // Kernel::POISSON_BINOMIAL_FIXED_SIZE. 
+
+
+  template < class KernelType >  
+  template < class TreeType, class Measure, class OutputIterator>
+  int PhylogeneticMeasures::Measure_base_unimodal<KernelType>::
+  _matrix_query_Poisson_binomial_fixed_size( TreeType &tree, std::vector<std::string> &names, 
+                                             std::vector< std::vector<bool> > &matrix, 
+                                             Measure &msr, bool standardised, OutputIterator ot )
+  {
+    if(!tree.stores_probability_values())
+    {
+      std::string exception_msg;
+      exception_msg += " The leaves of the input tree do not store any probability values."; 
+      Exception_type excp;
+      excp.get_error_message(exception_msg);
+      Exception_functor excf;
+      excf(excp);
+    } 
+
+    if(msr.probability_distribution() != Kernel::POISSON_BINOMIAL_FIXED_SIZE)
+    {
+      std::string exception_msg;
+      exception_msg += " The distribution of the input measure object should be set to"; 
+      exception_msg += " Kernel::POISSON_BINOMIAL_FIXED_SIZE .";
+      Exception_type excp;
+      excp.get_error_message(exception_msg);
+      Exception_functor excf;
+      excf(excp);
+    } 
+
+    if(standardised == true)
+    {
+      // Scan the matrix and find which is the largest 
+      // sample size (number of true entries) stored in its rows.
+   
+      int max_sum=0;
+
+      for(int i=0; i<matrix.size(); i++)
+      {
+        int sum=0;
+
+        for(int j=0; j<matrix[i].size(); j++)
+          if(matrix[i][j]==true)
+            sum++;
+
+        if(i==0 || sum>max_sum)
+          max_sum = sum;
+ 
+      } // for(int i=0; i<matrix.size(); i++)
+
+      // Compute the mean and variance of the input measure for the largest sample size
+      // observed in the matrix. This will automatically compute also the mean and variances
+      // for all smaller sample sizes.
+
+      msr.compute_expectation(max_sum);
+
+    } // if(standardised == true)
+
+    return _matrix_query(tree, names, matrix, msr, standardised, ot);
+    
+  } // _matrix_query_Poisson_binomial_fixed_size
+
+
+  template < class KernelType >  
+  template < class TreeType, class Measure, class OutputIterator>
+  int PhylogeneticMeasures::Measure_base_unimodal<KernelType>::
+  _csv_matrix_query_Poisson_binomial_fixed_size( TreeType &tree, char *filename, Measure &msr, 
+                                                 bool standardised, OutputIterator ot )
+  {
+    std::vector<std::string> names;
+    std::vector<std::vector<bool> > matrix;
+
+    this->read_csv_matrix(filename,names,matrix);
+
+    return _matrix_query_Poisson_binomial_fixed_size(tree, names, matrix, msr, standardised, ot);
+
+  } // csv_matrix_query_Poisson_binomial_fixed_size( ... )
+
+
+
+  // Input: A phylogenetic tree, a vector of std::strings storing species names, a boolean 2D matrix, and a 
+  // distance measure. The j-th column of the matrix corresponds to a species in the tree 
+  // (its name stored in the j-th entry of the names vector), and each row indicates a sample 
+  // of these species for we want to compute the distance measure. A certain species is considered 
+  // as part of the i-th sample if in the i-th row of the matrix there is a '1' at the column 
+  // that corresponds to this species (otherwise a '0').
+
+  // The last two arguments are: a boolean that indicates if it is required to compute the standardized
+  // value of the measure, and an output iterator of the type:
+  // std::back_insert_iterator<std::vector< Number_type > >.
+  // Output: A vector of numbers (passed in the form of an outputiterator), where the i-th number
+  // is the value of the measure for the sample that is described in the i-th row of the input matrix.
+  // If the 'standardised' argument is set to true then the returned values are  standardised values
+  // of the measure for each row sample according to the sequential fixed-size distribution.
+
+
+  // Precondition I: the leaves of the input tree store the probability values which are needed for
+  // this distribution.
+
+  // Precondition II: the probability_distribution of the input measure object is set to
+  // Kernel::SEQUENTIAL_FIXED_SIZE. 
+
+
+  template < class KernelType >  
+  template < class TreeType, class Measure, class OutputIterator>
+  int PhylogeneticMeasures::Measure_base_unimodal<KernelType>::
+  _matrix_query_sequential_fixed_size( TreeType &tree, std::vector<std::string> &names, 
+                                       std::vector< std::vector<bool> > &matrix, 
+                                       Measure &msr, bool standardised, OutputIterator ot, int repetitions )
+  {
+    if(!tree.stores_probability_values())
+    {
+      std::string exception_msg;
+      exception_msg += " The leaves of the input tree do not store any probability values."; 
+      Exception_type excp;
+      excp.get_error_message(exception_msg);
+      Exception_functor excf;
+      excf(excp);
+    } 
+
+    if(msr.probability_distribution() != Kernel::SEQUENTIAL_FIXED_SIZE)
+    {
+      std::string exception_msg;
+      exception_msg += " The distribution of the input measure object should be set to"; 
+      exception_msg += " Kernel::SEQUENTIAL_FIXED_SIZE .";
+      Exception_type excp;
+      excp.get_error_message(exception_msg);
+      Exception_functor excf;
+      excf(excp);
+    } 
+
+    if(standardised==false)
+      return _matrix_query(tree, names, matrix, msr, standardised, ot);
+
+
+    std::vector<int> leaf_indices;
+    std::vector<Number_type> probabilities;
+    typename TreeType::Leaves_iterator it;
+ 
+    for(it = tree.leaves_begin(); it != tree.leaves_end(); it++)
+    {
+      leaf_indices.push_back(it->second);
+      probabilities.push_back(tree.node_probability(it->second));
+    }  
+
+    Incremental_Monte_Carlo_handler  MC_handler;
+    Sequential_sampler sampler(leaf_indices,probabilities);
+    std::vector<std::pair<Number_type,Number_type> > moments;
+    std::vector<Number_type > original_vals;
+
+    MC_handler.estimate_moments_with_Monte_Carlo(msr, matrix, sampler, repetitions, std::back_inserter(moments));
+
+    _matrix_query(tree, names, matrix, msr, false, std::back_inserter(original_vals));
+
+    for(int i=0; i<original_vals.size(); i++)
+    {
+      if(moments[i].second==Number_type(0.0))
+        *ot++ = original_vals[i] - moments[i].first;
+      else
+        *ot++ = (original_vals[i] - moments[i].first)/moments[i].second;
+    }
+
+    return matrix.size();
+
+  } // _matrix_query_sequential_fixed_size
+
+
+  // Input: A distance measure, a sample-size n,  and a number of repetitions. 
+
+  // The other two arguments are two output iterators of the type:
+  // std::back_insert_iterator<std::vector< Number_type > >.
+  // Output: Two vector of n numbers each (passed in the form of the output iterators), where the i-th element
+  // of the first vector is the expectation of the measure for sample-size i, and the i-th element of the
+  // second vector is the deviation of the same measure.
+
+  // Precondition I: the leaves of the measure's tree store the probability values which are needed for
+  // this distribution.
+
+  // Precondition II: the probability_distribution of the input measure object is set to
+  // Kernel::SEQUENTIAL_FIXED_SIZE. 
+
+  // Attention: this function might be too slow for lagre values of sample_size.
+  // It is provided here only for completeness and for debugging reasons.
+
+  template < class KernelType >  
+  template < class Measure, class OutputIterator>
+  void PhylogeneticMeasures::Measure_base_unimodal<KernelType>::
+  _compute_moments_sequential_fixed_size( Measure &msr, int sample_size, 
+                                          OutputIterator ot_a, OutputIterator ot_b, int repetitions )
+  {
+    if(!msr.tree().stores_probability_values())
+    {
+      std::string exception_msg;
+      exception_msg += " The leaves of the input tree do not store any probability values."; 
+      Exception_type excp;
+      excp.get_error_message(exception_msg);
+      Exception_functor excf;
+      excf(excp);
+    } 
+
+    if(msr.probability_distribution() != Kernel::SEQUENTIAL_FIXED_SIZE)
+    {
+      std::string exception_msg;
+      exception_msg += " The distribution of the input measure object should be set to"; 
+      exception_msg += " Kernel::SEQUENTIAL_FIXED_SIZE .";
+      Exception_type excp;
+      excp.get_error_message(exception_msg);
+      Exception_functor excf;
+      excf(excp);
+    } 
+
+    std::vector<int> leaf_indices;
+    std::vector<Number_type> probabilities;
+   
+ 
+    typename Measure::Tree_type::Leaves_iterator it;
+ 
+    for(it = msr.tree().leaves_begin(); it != msr.tree().leaves_end(); it++)
+    {
+      leaf_indices.push_back(it->second);
+      probabilities.push_back(msr.tree().node_probability(it->second));
+    }  
+
+    Incremental_Monte_Carlo_handler  MC_handler;
+    Sequential_sampler sampler(leaf_indices,probabilities);
+    std::vector<std::pair<Number_type,Number_type> > moments;
+
+    std::vector<int> query_sizes;
+  
+    for(int k=0; k<=sample_size; k++)
+      query_sizes.push_back(k); 
+
+    MC_handler.estimate_moments_with_Monte_Carlo(msr, query_sizes, sampler, 
+                                                 repetitions, std::back_inserter(moments));
+
+    for(int i=0; i<moments.size(); i++)
+    {
+      *ot_a++ = moments[i].first;
+      *ot_b++ = moments[i].second;
+    }
+
+  } // _compute_moments_sequential_fixed_size
+
+  template < class KernelType >  
+  template < class TreeType, class Measure, class OutputIterator>
+  int PhylogeneticMeasures::Measure_base_unimodal<KernelType>::
+  _csv_matrix_query_sequential_fixed_size( TreeType &tree, char *filename, Measure &msr, 
+                                           bool standardised, OutputIterator ot, int repetitions)
+  {
+    std::vector<std::string> names;
+    std::vector<std::vector<bool> > matrix;
+
+    this->read_csv_matrix(filename,names,matrix);
+
+    return _matrix_query_sequential_fixed_size(tree, names, matrix, msr, standardised, ot, repetitions);
+
+  } // csv_matrix_query_sequential_fixed_size( ... )
+
+
+
+  // Input: A phylogenetic tree, a vector of std::strings storing species names, a boolean 2D matrix, and a 
+  // distance measure. The j-th column of the matrix corresponds to a species in the tree 
+  // (its name stored in the j-th entry of the names vector), and each row indicates a sample 
+  // of these species for we want to compute the distance measure. A certain species is considered 
+  // as part of the i-th sample if in the i-th row of the matrix there is a '1' at the column 
+  // that corresponds to this species (otherwise a '0').
+
+  // The last argument is an output iterator of the type:
+  // std::back_insert_iterator<std::vector< Number_type > >.
+  // Output: A vector of numbers (passed in the form of an outputiterator), where the i-th number
+  // is the p-value for the sample that is described in the i-th row of the input matrix,
+  // computed according to the uniform fixed-size sampling distribution.
+
+
+  // Precondition: the probability_distribution of the input measure object is set to
+  // Kernel::UNIFORM_FIXED_SIZE. 
+
+
+
+  template < class KernelType >  
+  template < class TreeType, class Measure, class OutputIterator>
+  int PhylogeneticMeasures::Measure_base_unimodal<KernelType>::
+  _pvalues_query_uniform_fixed_size( TreeType &tree, std::vector<std::string> &names, 
+                                     std::vector< std::vector<bool> > &matrix, 
+                                     Measure &msr, OutputIterator ot, int repetitions )
+  {
+    if(msr.probability_distribution() != Kernel::UNIFORM_FIXED_SIZE)
+    {
+      std::string exception_msg;
+      exception_msg += " The distribution of the input measure object should be set to"; 
+      exception_msg += " Kernel::UNIFORM_FIXED_SIZE .";
+      Exception_type excp;
+      excp.get_error_message(exception_msg);
+      Exception_functor excf;
+      excf(excp);
+    } 
+
+    std::vector<int> leaf_indices;
+    typename TreeType::Leaves_iterator it;
+ 
+    for(it = tree.leaves_begin(); it != tree.leaves_end(); it++)
+      leaf_indices.push_back(it->second);
+
+    Incremental_Monte_Carlo_handler  MC_handler;
+    Uniform_sampler sampler(leaf_indices);
+
+    MC_handler.estimate_pvalues_with_Monte_Carlo(msr, names, matrix, sampler, repetitions, ot);
+  
+    return matrix.size();
+
+  } // _pvalues_query_uniform_fixed_size
+
+
+  template < class KernelType >  
+  template < class TreeType, class Measure, class OutputIterator>
+  int PhylogeneticMeasures::Measure_base_unimodal<KernelType>::
+  _csv_pvalues_query_uniform_fixed_size( TreeType &tree, const char *filename, Measure &msr, 
+                                         OutputIterator ot, int repetitions)
+  {
+    std::vector<std::string> names;
+    std::vector<std::vector<bool> > matrix;
+
+    this->read_csv_matrix(filename,names,matrix);
+
+    return _pvalues_query_uniform_fixed_size(tree, names, matrix, msr, ot, repetitions);
+
+  } // _csv_pvalues_query_uniform_fixed_size( ... )
+
+
+  // Input: A phylogenetic tree, a vector of std::strings storing species names, a boolean 2D matrix, and a 
+  // distance measure. The j-th column of the matrix corresponds to a species in the tree 
+  // (its name stored in the j-th entry of the names vector), and each row indicates a sample 
+  // of these species for we want to compute the distance measure. A certain species is considered 
+  // as part of the i-th sample if in the i-th row of the matrix there is a '1' at the column 
+  // that corresponds to this species (otherwise a '0').
+
+  // The last argument is an output iterator of the type:
+  // std::back_insert_iterator<std::vector< Number_type > >.
+  // Output: A vector of numbers (passed in the form of an outputiterator), where the i-th number
+  // is the p-value for the sample that is described in the i-th row of the input matrix,
+  // computed according to the R-style sequential weighted sampling distribution.
+
+
+  // Precondition I: the leaves of the input tree store the probability values which are needed for
+  // this distribution.
+
+  // Precondition II: the probability_distribution of the input measure object is set to
+  // Kernel::SEQUENTIAL_FIXED_SIZE. 
+
+
+  template < class KernelType >  
+  template < class TreeType, class Measure, class OutputIterator>
+  int PhylogeneticMeasures::Measure_base_unimodal<KernelType>::
+  _pvalues_query_sequential_fixed_size( TreeType &tree, std::vector<std::string> &names, 
+                                        std::vector< std::vector<bool> > &matrix, 
+                                        Measure &msr, OutputIterator ot, int repetitions )
+  {
+    if(!tree.stores_probability_values())
+    {
+      std::string exception_msg;
+      exception_msg += " The leaves of the input tree do not store any probability values."; 
+      Exception_type excp;
+      excp.get_error_message(exception_msg);
+      Exception_functor excf;
+      excf(excp);
+    } 
+
+    if(msr.probability_distribution() != Kernel::SEQUENTIAL_FIXED_SIZE)
+    {
+      std::string exception_msg;
+      exception_msg += " The distribution of the input measure object should be set to"; 
+      exception_msg += " Kernel::SEQUENTIAL_FIXED_SIZE .";
+      Exception_type excp;
+      excp.get_error_message(exception_msg);
+      Exception_functor excf;
+      excf(excp);
+    } 
+
+    std::vector<int> leaf_indices;
+    std::vector<Number_type> probabilities;
+    typename TreeType::Leaves_iterator it;
+ 
+    for(it = tree.leaves_begin(); it != tree.leaves_end(); it++)
+    {
+      leaf_indices.push_back(it->second);
+      probabilities.push_back(tree.node_probability(it->second));
+    }  
+
+    Incremental_Monte_Carlo_handler  MC_handler;
+    Sequential_sampler sampler(leaf_indices,probabilities);
+
+    MC_handler.estimate_pvalues_with_Monte_Carlo(msr, names, matrix, sampler, repetitions, ot);
+
+    return matrix.size();
+
+  } // _pvalues_query_sequential_fixed_size
+
+
+  template < class KernelType >  
+  template < class TreeType, class Measure, class OutputIterator>
+  int PhylogeneticMeasures::Measure_base_unimodal<KernelType>::
+  _csv_pvalues_query_sequential_fixed_size( TreeType &tree, const char *filename, Measure &msr, 
+                                           OutputIterator ot, int repetitions)
+  {
+    std::vector<std::string> names;
+    std::vector<std::vector<bool> > matrix;
+
+    this->read_csv_matrix(filename,names,matrix);
+
+    return _pvalues_query_sequential_fixed_size(tree, names, matrix, msr, ot, repetitions);
+
+  } // _csv_pvalues_query_sequential_fixed_size( ... )
 
 #endif //MEASURE_BASE_UNIMODAL_IMPL_H

@@ -1,5 +1,5 @@
 //////////////////////////////////////////////////////////////////////////////////
-//    Copyright (C) 2015,  Constantinos Tsirogiannis.  Email: analekta@gmail.com
+//    Copyright (C) 2016,  Constantinos Tsirogiannis.  Email: tsirogiannis.c@gmail.com
 //
 //    This file is part of PhyloMeasures.
 //
@@ -21,12 +21,14 @@
 #define NUMERIC_TRAITS_DOUBLE_H
 
 #include<cmath>
+#include "Numeric_traits_types/Protected_number_type.h" 
 
 namespace PhylogeneticMeasures 
 {
   struct Numeric_traits_double
   {
-    typedef double Number_type;
+    typedef double                                                      Number_type;
+    typedef Numeric_traits_double                                        Self;
 
     class Is_exact
     {
@@ -44,12 +46,20 @@ namespace PhylogeneticMeasures
         { return x; }
     };
 
+    class Power
+    {
+      public:
+
+        double operator()(double x, int k)
+        { return std::pow(x,k); }
+    };
+
     class Ceiling
     {
       public:
 
         double operator()(double x)
-        { return ceil(x); }
+        { return std::ceil(x); }
     };
 
     class Square_root
@@ -67,6 +77,29 @@ namespace PhylogeneticMeasures
         double operator()(double x)
         { return std::abs(x);}
     };
+
+    class Cosine
+    {
+      public:
+ 
+        double operator()(double x)
+        { return std::cos(x);}
+    };
+
+    class Sine
+    {
+      public:
+ 
+        double operator()(double x)
+        { return std::sin(x);}
+    };
+
+
+    /////////////////////////////////////////////////////////////////////
+    // Type used for preserving accuracy in polynomial multiplications //
+    /////////////////////////////////////////////////////////////////////
+
+    typedef typename PhylogeneticMeasures::Protected_number_type<Self>  Protected_number_type;
 
   }; // struct Numeric_traits_double
 

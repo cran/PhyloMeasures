@@ -1,10 +1,11 @@
 \name{cd.moments}
 \alias{cd.moments}
 \title{
-Computes the moments of the Community Distance measure
+Computes the moments of the Community Distance measure under the uniform null model
 }
 \description{
 Calculates the mean and standard deviation of the Community Distance (CD) on a given tree for several pairs of tip set sizes.
+These calculations consider equal (uniform) probability among all possible tip samples of the same richness.
 }
 \usage{
 cd.moments(tree, sample.sizes, comp.expectation = TRUE, 
@@ -24,7 +25,7 @@ Graham, C.H. and P.V.A. Fine. 2008. Phylogenetic beta diversity: linking ecologi
 Swenson, N.G. 2011. Phylogenetic beta diversity metrics, trait evolution and inferring functional beta diversity of communities. PLoS ONE: 6: e21264.
 
 Tsirogiannis, C. and B. Sandel. In prep. Fast computation of measures of phylogenetic beta diversity.}
-\author{Constantinos Tsirogiannis (constant@madalgo.au.dk)}
+\author{Constantinos Tsirogiannis (tsirogiannis.c@gmail.com)}
 
 \seealso{\code{\link{cd.query}}
 }

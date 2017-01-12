@@ -1,5 +1,5 @@
-//////////////////////////////////////////////////////////////////////////////////
-//    Copyright (C) 2015,  Constantinos Tsirogiannis.  Email: analekta@gmail.com
+///////////////////////////////////////////////////////////////////////////////////////
+//    Copyright (C) 2016,  Constantinos Tsirogiannis.  Email: tsirogiannis.c@gmail.com
 //
 //    This file is part of PhyloMeasures.
 //
@@ -15,7 +15,7 @@
 //
 //    You should have received a copy of the GNU General Public License
 //    along with PhyloMeasures.  If not, see <http://www.gnu.org/licenses/>
-//////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////
 
 #ifndef PHYLOGENETIC_TREE_BASE_IMPL_H
 #define PHYLOGENETIC_TREE_BASE_IMPL_H
@@ -59,6 +59,101 @@
 
   } // Number_type _check_if_ultrametric(int index)
 
+  template < class KernelType, class NodeType >
+  bool PhylogeneticMeasures::Phylogenetic_tree_base<KernelType, NodeType>::
+  _explore_tree(int index, std::map<std::string,int> &leaves, 
+                std::vector<bool> &visited_nodes)
+  {
+    if(visited_nodes[index] == true)
+      return false;
+
+    visited_nodes[index]=true;
+
+    if(_container[index].number_of_children() == 0)
+    {
+      if(leaves.find(_container[index].taxon) != leaves.end())
+        return false;
+
+      leaves[_container[index].taxon] = index;
+
+      return true;
+    }
+
+    for(int i=0; i<_container[index].number_of_children(); i++)
+      if(_explore_tree(_container[index].children[i],leaves,visited_nodes)==false)
+        return false;
+
+    return true;
+
+  } // _explore_tree(...)
+
+  template < class KernelType, class NodeType >
+  bool PhylogeneticMeasures::Phylogenetic_tree_base<KernelType, NodeType>::is_valid()
+  {
+    // Check that there is only one root
+
+    int roots=0;
+
+    for(int i=0; i<_container.size(); i++)
+      if(_container[i].parent < 0 || _container[i].parent >= _container.size() )
+        roots++;
+
+    if(roots != 1)
+      return false;
+
+    // Check that there is no cycle 
+ 
+    for(int i=0; i<_container.size(); i++)
+    {
+      int index=i;
+
+      while(index!=-1)
+      {
+        index = _container[index].parent;
+
+        if(index==i)
+          return false;
+      }
+
+    } // for(int i=0; i<_container.size(); i++)
+
+    // Check that there is no node with a single child
+    
+    for(int i=0; i<_container.size(); i++)
+      if(_container[i].number_of_children() == 1)
+        return false;
+
+    // Check if you can reach all leaves and internal nodes from the root.
+
+    std::map<std::string,int> leaves;
+    std::vector<bool> visited_nodes;
+
+    visited_nodes.assign(_container.size(), false);
+
+    if(this->_explore_tree(_root_index,leaves, visited_nodes)==false)
+      return false;
+
+    for(int i=0; i<visited_nodes.size(); i++)
+      if(visited_nodes[i]==false)
+        return false;
+
+    for(typename std::map<std::string,int>::iterator it = leaves.begin(); it != leaves.end(); it++ )
+      if(_leaves.find(it->first) == _leaves.end() || _leaves[it->first] != it->second)
+        return false;
+
+    if(_leaves.size() != leaves.size())
+      return false;
+    
+    // Check if the children/parent data are correct
+
+    for(int i=0; i<_container.size(); i++)
+      for(int j=0; j<_container[i].number_of_children(); j++)
+        if( _container[_container[i].children[j]].parent != i)
+          return false;    
+
+    return true;
+
+  } // is_valid()
 
   template < class KernelType, class NodeType >
   bool PhylogeneticMeasures::Phylogenetic_tree_base<KernelType, NodeType>::_check_if_ultrametric()
@@ -77,6 +172,39 @@
     _is_ultrametric = 0;
     return false;
 
+  }
+
+  template < class KernelType, class NodeType >
+  int PhylogeneticMeasures::Phylogenetic_tree_base<KernelType,NodeType>::_calculate_depth(int index)
+  {
+    Node_type v = node(index);
+
+    if( v.children.size() == 0 )
+      return 0;
+
+    int max_depth=0;
+
+    for(int i=0; i<v.children.size(); i++)
+    {
+      int temp_depth = _calculate_depth(v.children[i]);
+
+      if(max_depth < temp_depth)
+        max_depth = temp_depth;
+
+    } // for(int i=0; i<v.children.size(); i+
+
+    return max_depth+1;
+
+  } // Number_type _calculate_depth(int index)
+
+
+  template < class KernelType, class NodeType >
+  int PhylogeneticMeasures::Phylogenetic_tree_base<KernelType, NodeType>::_calculate_depth()
+  {
+    if( _depth >= 0 )
+      return _depth;
+
+    return _calculate_depth(root_index());
   }
 
   // This function computes the Sackin's index of a phylogenetic tree;
@@ -174,6 +302,10 @@
   // the cost (i.e. the sum of the weights of the edges) of this
   // Steiner tree. For this function to work appropriately, 
   // we should mark the root of the Steiner tree in advance.
+  // If the root of the Steiner tree is not marked  before
+  // the execution of the function, then the function constructs
+  // the Steiner tree between the input leaves in [rbegin,rend) 
+  // and the root of the complete tree.
 
   template < class KernelType, class NodeType >
   template< class RangeIterator >
@@ -216,6 +348,79 @@
   } // mark_Steiner_tree_of_sample(...)
 
 
+  // The next function returns the increase in the cost (not the total cost) of the 
+  // marked Steiner tree if we add a new node, indicated by 'new_node_index'.
+  // Precondition: 'intersection_index' indicates the root of the current
+  // Steiner tree, that is the tree before the addition of the new node.
+  // The function may change the value of its first argument, which happens
+  // in the case that the root of the Steiner tree changes.
+
+  template < class KernelType, class NodeType >
+  typename PhylogeneticMeasures::Phylogenetic_tree_base<KernelType,NodeType>::Number_type 
+  PhylogeneticMeasures::Phylogenetic_tree_base<KernelType,NodeType>::
+  update_marked_Steiner_tree(int &intersection_index, int new_node_index)
+  {
+    Number_type added_dist(0.0);
+    int new_intersection_index = compute_intersection_node_index( intersection_index, new_node_index );
+
+    if(new_intersection_index != intersection_index)
+    {
+      this->node(new_intersection_index).mark = true;
+
+      // Traverse and mark the path between the old and the new intersection index
+
+      Node_type v = this->node(intersection_index);
+
+      if( intersection_index != this->root_index() ) // Maybe redundant
+          added_dist += Number_type(v.distance);
+
+      while( (!this->is_root(v)) )
+      {
+        this->node(v.parent).marked_children.push_back(intersection_index);
+
+        if(this->node(v.parent).mark == false)
+        {
+          this->node(v.parent).mark = true;
+          intersection_index = v.parent;
+          v = this->node(v.parent);
+          added_dist += Number_type(v.distance);
+        }
+        else
+          break;
+
+      } // while( (!tree.is_root(v)) )
+
+      intersection_index = new_intersection_index; 
+
+    } // if(new_intersection_index != intersection_index)
+
+    this->node(new_node_index).mark = true;
+
+    Node_type v = this->node(new_node_index);
+
+    if( new_node_index != this->root_index() ) // Maybe redundant
+        added_dist += Number_type(v.distance);
+
+    while( (!this->is_root(v)) )
+    {
+      this->node(v.parent).marked_children.push_back(new_node_index);
+
+      if(this->node(v.parent).mark == false)
+      {
+        this->node(v.parent).mark = true;
+        new_node_index = v.parent;
+        v = this->node(v.parent);
+        added_dist += Number_type(v.distance);
+      }
+      else
+        break;
+
+    } // while( (!tree.is_root(v)) )
+
+    return added_dist;
+
+  } // update_marked_Steiner_tree(...)
+
   // Given a tree and a sample of its leaf nodes that are represented
   // by the iterator range [rbegin,rend), the following function
   // unmarks the marked nodes that fall on paths between sample
@@ -243,9 +448,9 @@
       }
     }
 
-    clear_marked_nodes();
+    this->clear_marked_nodes();
 
-  } // unmark_Steiner_tree_of_nodes(...)
+  } // unmark_Steiner_tree_of_sample(...)
   
   template < class KernelType, class NodeType >
   int PhylogeneticMeasures::Phylogenetic_tree_base<KernelType, NodeType>::
@@ -268,9 +473,120 @@
 
   } // compute_intersection_node_index(...)
 
-    
   template < class KernelType, class NodeType >
-  void PhylogeneticMeasures::Phylogenetic_tree_base<KernelType, NodeType>::construct_from_file( const char *filename )
+  void PhylogeneticMeasures::Phylogenetic_tree_base<KernelType, NodeType>::
+  set_leaf_probability_values(std::vector<std::string> &names, 
+                              std::vector<Number_type> &p)
+  {
+    if(names.size() != this->number_of_leaves())
+    {
+      std::string warning;
+
+      warning += " Warning: the input vector stores a different number of names \n";  
+      warning += " than the leaves in the tree.\n";
+      Exception_functor().issue_warning(warning);
+    }
+
+    if(names.size() != p.size())
+    {
+      std::string warning;
+      warning += " Warning: the two input vectors have a different number of elements. \n";  
+      Exception_functor().issue_warning(warning);
+    }
+
+    // Make the probability values canonical
+    
+    Number_type sum(0.0);
+
+    for(int i=0; i<p.size(); i++)
+      sum+= p[i];
+
+    if(sum <= Number_type(0.0))
+    {
+        std::string exception_msg;
+        exception_msg += " The sum of the input probabilities should be larger than zero. \n"; 
+        Exception_type excp;
+        excp.get_error_message(exception_msg);
+        Exception_functor excf;
+        excf(excp);
+    }
+
+    std::vector<Number_type> newp;
+
+    for(int i=0; i<p.size(); i++)
+      newp.push_back(p[i]/sum); 
+   
+
+    for( int i=0; i<newp.size(); i++ )
+      if( newp[i] < Number_type(0.0) )
+      {
+
+        std::stringstream sstrm_a, sstrm_b;
+        std::string i_str, pi_str;
+        sstrm_a << i;
+        i_str = sstrm_a.str();
+        sstrm_b << p[i];
+        pi_str = sstrm_b.str();
+
+        std::string exception_msg;
+        exception_msg += " One of the input numbers is not a valid probability value ( index: ";
+        exception_msg += i_str;
+        exception_msg += " , value: ";
+        exception_msg += pi_str;
+        exception_msg += ") \n";  
+        Exception_type excp;
+        excp.get_error_message(exception_msg);
+        Exception_functor excf;
+        excf(excp);
+      }
+
+    std::vector<bool> checked_names;
+    checked_names.assign(this->number_of_nodes(),false);
+    _probabilities.assign(number_of_nodes(), Number_type(-1.0));
+ 
+    for( int i=0; i<names.size(); i++ )
+    {
+      Leaves_iterator lv_it = find_leaf(names[i]);
+
+      if( lv_it == leaves_end() )
+      {
+        std::string exception_msg;
+        exception_msg += " One of the species names in input vector was not found in the tree (";
+        exception_msg += names[i];
+        exception_msg += ") \n";  
+        Exception_type excp;
+        excp.get_error_message(exception_msg);
+        Exception_functor excf;
+        excf(excp);
+      }
+      else 
+      {
+        if(checked_names[(*lv_it).second] == true)
+        {
+          std::string exception_msg;
+          exception_msg += " Two or more elements of the input vector share the same species name (";
+          exception_msg += (*lv_it).first;
+          exception_msg += ") \n";  
+          Exception_type excp;
+          excp.get_error_message(exception_msg);
+          Exception_functor excf;
+          excf(excp);
+        } 
+        else
+        {
+          checked_names[(*lv_it).second] = true;      
+          _probabilities[(*lv_it).second]=newp[i];
+        }
+
+      } // else of if( lv_it == tree.leaves_end() )
+
+    } // for( int i=0; i<names.size(); i++ )
+
+  } // set_leaf_probability_values(...)    
+
+  template < class KernelType, class NodeType >
+  void PhylogeneticMeasures::Phylogenetic_tree_base<KernelType, NodeType>::
+  construct_from_file( const char *filename )
   {
     std::ifstream in(filename);
     std::string tree_str;
@@ -295,6 +611,8 @@
       tree_str.push_back(a);
       in >> a;
     }
+
+    in.close();
 
     construct_from_string( tree_str );
 	
@@ -491,6 +809,7 @@
     } // if(tree_string[index] == '(')
    
     index = _extract_taxon_and_distance(tree_string, index, v);
+  
     _container.push_back(v);
 
     for(int i=0; i<v.number_of_children(); i++)
@@ -529,6 +848,277 @@
 
   } // _extract_taxon_and_distance(...)
 
+  template < class KernelType, class NodeType>
+  int PhylogeneticMeasures::Phylogenetic_tree_base<KernelType, NodeType>::
+  _create_binary_tree_over_nodes( std::vector<int> &leaves, int last_index, 
+                                  Node_type &father,
+                                  std::vector<Node_type> &current_status)
+  {
+    std::vector<int>  nodes;   
+    int count;
+
+    for(int i=0; i<leaves.size(); i++)
+      nodes.push_back(leaves[i]);
+
+    while(nodes.size() > 1)
+    {
+      std::vector<int> new_nodes;
+
+      for(int i=0; i<nodes.size(); i++)
+        if(i%2 == 1)
+        {
+          Node_type v;
+
+          last_index++; 
+
+          v.children.push_back(nodes[i-1]);
+          v.children.push_back(nodes[i]);
+
+          current_status[nodes[i-1]].parent = last_index;
+          current_status[nodes[i]].parent = last_index;
+
+          v.distance = double(0.0);
+          v.taxon = std::string("Artificial_taxon_"); 
+          std::ostringstream convert;   
+          convert << last_index;
+          v.taxon += convert.str(); 
+            
+          current_status.push_back(v);
+
+          new_nodes.push_back(last_index);
+        }   
+
+      if(nodes.size()%2 == 1)
+        new_nodes.push_back(nodes.back());
+
+      nodes = new_nodes;
+
+    } // while(nodes.size() > 1)
+
+    current_status.back().taxon = father.taxon;
+    current_status.back().distance = father.distance;    
+    current_status.back().parent = father.parent;    
+
+    return last_index;
+
+  } // _create_binary_tree_over_nodes(...)
+
+
+  // The next function works only if the input vector
+  // of nodes represents the tree in post-order. 
+
+  template < class KernelType, class NodeType>
+  void PhylogeneticMeasures::Phylogenetic_tree_base<KernelType, NodeType>::
+  convert_to_binary_tree()
+  {
+    std::vector<Node_type> new_container;
+    std::vector<int> new_positions;
+
+    new_positions.assign(_container.size(), 0);
+
+    std::vector<std::string> names;
+    std::vector<Number_type> probs;
+
+    if(_probabilities.size() > 0)
+      for(Leaves_iterator lit = this->leaves_begin(); lit != this->leaves_end(); lit++)
+      {
+        names.push_back(lit->first);
+        probs.push_back( this->node_probability(lit->second));  
+      }
+
+    for(int i=0; i<_container.size(); i++)
+    {
+      Node_type v = _container[i];
+
+      if(v.number_of_children() <=2)
+      {          
+        new_container.push_back(v);
+
+        int index = new_container.size()-1; 
+
+        new_positions[i] = index;
+
+        for(int j=0; j<v.number_of_children(); j++)
+        {
+          int ch_index = new_positions[v.children[j]];
+          new_container[ch_index].parent = index; 
+          new_container[index].children[j] = ch_index; 
+        }
+
+      } // if(v.number_of_children() <=2)
+      else
+      {
+        std::vector<int> children_indices;
+
+        for(int j=0; j<v.number_of_children(); j++)
+          children_indices.push_back(new_positions[ v.children[j] ]);
+
+        _create_binary_tree_over_nodes( children_indices, new_container.size()-1, v, new_container);
+
+        int index = new_container.size()-1; 
+        new_positions[i] = index;
+
+      } // else of if(v.number_of_children() <=2)
+
+    } // for(int i=0; i<_container.size(); i++)
+
+    // Check if any new nodes were added. 
+    // If not, return.
+
+    if(_container.size() == new_container.size())
+      return;
+
+    _container = new_container;
+    _root_index = new_container.size()-1;
+    //_leaves.clear();
+
+    new_container.clear();
+
+    for(Leaves_iterator it = leaves_begin(); it != leaves_end(); it++)
+      it->second = new_positions[it->second]; 
+
+    new_positions.clear();
+
+    // Although the tree so far has a valid structure,
+    // the indices of the nodes are not numbered according
+    // to post-order traversal. We fix that with the next
+    // piece of code.
+    std::vector<int> swap_vector;
+
+    swap_vector.assign(_container.size(),-1);
+
+    _post_order_traversal(_root_index,swap_vector,0);
+
+    new_container.assign(_container.size(), Node_type());
+
+    for(int i=0; i<_container.size(); i++)
+    {
+      Node_type temp_node = _container[i];
+
+      new_container[swap_vector[i]] = temp_node;
+
+    if(_container[i].parent != -1)
+      new_container[swap_vector[i]].parent = swap_vector[_container[i].parent];
+    else
+      new_container[swap_vector[i]].parent = -1;
+    }
+
+    for(int i=0; i<new_container.size(); i++)    
+      for(int j=0; j<new_container[i].number_of_children(); j++)          
+        new_container[i].children[j] = swap_vector[new_container[i].children[j]];
+
+    for(int i=0; i<_container.size(); i++)
+    {
+      if(_container[i].parent !=-1)
+        _container[i].parent = -swap_vector[_container[i].parent];
+
+      for(int j=0; j<_container[i].number_of_children(); j++)
+        _container[i].children[j] = -swap_vector[_container[i].children[j]];
+    }
+
+    _container.clear();
+
+    for(int i=0; i<new_container.size(); i++)
+      _container.push_back(new_container[i]);
+ 
+    for(int i=0; i<_container.size(); i++)
+      if(_container[i].number_of_children() == 0)
+        _leaves[_container[i].taxon]=i;
+
+    /////////////////////////////////
+    // Restoring satellite data    //
+    // Unfortunately, marked nodes //
+    // cannot be maintained.       //
+    /////////////////////////////////
+
+    if(probs.size()>0)
+      this->set_leaf_probability_values(names, probs);
+
+    if(_assigned_all_subtree_leaves == true)
+    {
+      _assigned_all_subtree_leaves = false;
+      this->assign_all_subtree_leaves();
+    }
+
+    if(_subtree_edges.size() > 0)
+    {
+      _subtree_edges.clear();
+      this->subtree_edges(0);
+    }
+
+    _root_index = _container.size()-1;
+    swap_vector.clear();
+
+    _depth = -1;
+
+  } // convert_to_binary_tree()
+
+
+  template < class KernelType, class NodeType >
+  void PhylogeneticMeasures::Phylogenetic_tree_base<KernelType, NodeType>::
+  read_abundance_weights_from_file(char *filename)
+  {
+    std::ifstream in(filename);
+
+    // Reading file
+    if( !( in.is_open() && in.good() ) )
+    {
+      std::string exception_msg(" There was a problem with opening the file with the species samples.\n");
+      Exception_type excp;
+      excp.get_error_message(exception_msg);
+      Exception_functor excf;
+      excf(excp);
+    }
+
+    int n = this->number_of_leaves();
+    std::vector<std::string> abundance_weights_names;
+    std::vector<Number_type> abundance_weights;
+
+    // Read first the leaf names
+
+    for(int i=0; i<n; i++)
+    {
+      std::string line;
+
+      if(!in.good())
+      {
+        std::string exception_msg(" The file with the abundance weights has less rows than expected.\n");
+        Exception_type excp;
+        excp.get_error_message(exception_msg);
+        Exception_functor excf;
+        excf(excp);
+      }
+
+      std::getline(in,line);
+
+      abundance_weights_names.push_back(line);
+
+    } // first for(int i=0; i<n; i++)
+
+    for(int i=0; i<n; i++)
+    {
+      std::string line;
+
+      if(!in.good())
+      {
+        std::string exception_msg(" The file with the abundance weights has less rows than expected.\n");
+        Exception_type excp;
+        excp.get_error_message(exception_msg);
+        Exception_functor excf;
+        excf(excp);
+      }
+
+      std::getline(in,line);
+
+      abundance_weights.push_back(atof(line.c_str()));
+
+    } // second for(int i=0; i<n; i++)
+
+    this->set_leaf_probability_values(abundance_weights_names, abundance_weights);
+
+  } // read_abundance_weights_from_file(...)
+
+
   template < class KernelType, class NodeType >
   template <class OUTSTRM >  
   void PhylogeneticMeasures::Phylogenetic_tree_base<KernelType, NodeType>::
@@ -542,6 +1132,43 @@
     outs << ";" << std::endl;
   }
 
+
+  template < class KernelType, class NodeType >
+  template <class OUTSTRM >  
+  void PhylogeneticMeasures::Phylogenetic_tree_base<KernelType, NodeType>::
+  print_subtree_of_node(OUTSTRM &outs, int index)
+  {
+    if(index < 0 || index > this->number_of_nodes() || this->number_of_nodes() == 0)
+      return; 
+
+    _print_tree(outs, index);
+
+    outs << ";" << std::endl;
+  }
+
+  template < class KernelType, class NodeType >
+  int PhylogeneticMeasures::Phylogenetic_tree_base<KernelType, NodeType>::
+  print_subtree_of_approx_k_leaves(int k)
+  {
+    if(this->number_of_leaves() < k || k<=0)
+      return 0;
+
+    this->assign_all_subtree_leaves(this->root_index());
+
+    int index=-1, val= -1;
+
+    for(int i=0; i<_container.size(); i++)
+      if( _container[i].all_subtree_leaves >= k && (val==-1 || _container[i].all_subtree_leaves < val))
+      {
+        index = i;
+        val = _container[i].all_subtree_leaves;
+      }  
+
+    this->print_subtree_of_node(index);
+
+    return val;
+  
+  } //print_subtree_of_approx_k_leaves(int k)
 
   template < class KernelType, class NodeType >
   template <class OUTSTRM >  

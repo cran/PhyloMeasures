@@ -1,7 +1,7 @@
 ################################################################################################
-##    Copyright (C) 2015,  Constantinos Tsirogiannis and Brody Sandel.  
+##    Copyright (C) 2016,  Constantinos Tsirogiannis and Brody Sandel.  
 ##
-##    Email: analekta@gmail.com and brody.sandel@bios.au.dk
+##    Email: tsirogiannis.c@gmail.com and bsandel@scu.edu
 ##
 ##    This file is part of PhyloMeasures.
 ##
@@ -20,6 +20,7 @@
 ################################################################################################
 
 require(ape)
+require(methods)
 
 #################################################
 #################################################
@@ -27,7 +28,28 @@ require(ape)
 #################################################
 #################################################
 
-pd.query = function(tree, matrix, is.standardised = FALSE)
+pd.query = function(tree, matrix, standardize = FALSE, 
+                    null.model="uniform", abundance.weights, reps=1000, seed)
+{
+  if(null.model == "uniform" || standardize == FALSE)
+    pd.query.uniform(tree, matrix, standardize)   
+  else
+  {
+    if(hasArg(abundance.weights) == FALSE )
+      stop("No abundance weights defined. \n\n")
+
+    my.seed = -1
+
+    if(hasArg(seed) == TRUE )
+      my.seed = seed
+
+    pd.query.weighted(tree, matrix, abundance.weights, standardize, null.model, reps, my.seed)
+
+  } # else of if(null.model == "uniform" || standardize == FALSE)
+
+} # pd.query = function(...)
+
+pd.query.uniform = function(tree, matrix, standardize = FALSE)
 {
   matrix.data = unlist(t(matrix))
 
@@ -55,7 +77,7 @@ pd.query = function(tree, matrix, is.standardised = FALSE)
   res <-.C("pd_query",as.integer(length(tree$edge.length)), as.integer(number.of.leaves), as.integer(tree$edge), 
            as.numeric(tree$edge.length), as.character(tree$tip.label), as.character(matrix.species), 
            as.integer(matrix.rows), as.integer(matrix.columns), as.integer(matrix.data), 
-           as.logical(is.standardised), as.numeric(output), as.character(error.message), as.integer(message.size),
+           as.logical(standardize), as.numeric(output), as.character(error.message), as.integer(message.size),
            PACKAGE = "PhyloMeasures")
 
   if(res[[13]] > 0)
@@ -63,10 +85,31 @@ pd.query = function(tree, matrix, is.standardised = FALSE)
 
   return (res[[11]])
 
-} # pd.query = function(...)
+} # pd.query.uniform = function(...)
 
 
-mpd.query = function(tree, matrix, is.standardised = FALSE)
+mpd.query = function(tree, matrix, standardize = FALSE, 
+                     null.model="uniform", abundance.weights, reps=1000, seed)
+{
+  if(null.model == "uniform" || standardize == FALSE)
+    mpd.query.uniform(tree, matrix, standardize)   
+  else
+  {
+    if(hasArg(abundance.weights) == FALSE )
+      stop("No abundance weights defined. \n\n")
+
+    my.seed = -1
+
+    if(hasArg(seed) == TRUE )
+      my.seed = seed
+
+    mpd.query.weighted(tree, matrix, abundance.weights, standardize, null.model, reps, my.seed)
+
+  } # else of if(null.model == "uniform" || standardize == FALSE)
+
+} # mpd.query = function(...)
+
+mpd.query.uniform = function(tree, matrix, standardize = FALSE)
 {
   matrix.data = unlist(t(matrix))
 
@@ -92,7 +135,7 @@ mpd.query = function(tree, matrix, is.standardised = FALSE)
   res <-.C("mpd_query",as.integer(length(tree$edge.length)), as.integer(number.of.leaves), as.integer(tree$edge), 
            as.numeric(tree$edge.length), as.character(tree$tip.label), as.character(matrix.species), 
            as.integer(matrix.rows), as.integer(matrix.columns), as.integer(matrix.data), 
-           as.logical(is.standardised), as.numeric(output), as.character(error.message), as.integer(message.size),
+           as.logical(standardize), as.numeric(output), as.character(error.message), as.integer(message.size),
            PACKAGE = "PhyloMeasures")
 
   if(res[[13]] > 0)
@@ -101,10 +144,32 @@ mpd.query = function(tree, matrix, is.standardised = FALSE)
 
   return (res[[11]])
 
-} # mpd.query = function(...)
+} # mpd.query.uniform = function(...)
 
 
-mntd.query = function(tree, matrix, is.standardised = FALSE)
+mntd.query = function(tree, matrix, standardize = FALSE, 
+                     null.model="uniform", abundance.weights, reps=1000, seed)
+{
+  if(null.model == "uniform" || standardize == FALSE)
+    mntd.query.uniform(tree, matrix, standardize)   
+  else
+  {
+    if(hasArg(abundance.weights) == FALSE )
+      stop("No abundance weights defined. \n\n")
+
+    my.seed = -1
+
+    if(hasArg(seed) == TRUE )
+      my.seed = seed
+
+    mntd.query.weighted(tree, matrix, abundance.weights, standardize, null.model, reps, my.seed)
+
+  } # else of if(null.model == "uniform" || standardize == FALSE)
+
+} # mntd.query = function(...)
+
+
+mntd.query.uniform = function(tree, matrix, standardize = FALSE)
 {
   matrix.data = unlist(t(matrix))
 
@@ -130,7 +195,7 @@ mntd.query = function(tree, matrix, is.standardised = FALSE)
   res <-.C("mntd_query",as.integer(length(tree$edge.length)), as.integer(number.of.leaves), as.integer(tree$edge), 
            as.numeric(tree$edge.length), as.character(tree$tip.label), as.character(matrix.species), 
            as.integer(matrix.rows), as.integer(matrix.columns), as.integer(matrix.data), 
-           as.logical(is.standardised), as.numeric(output), as.character(error.message), as.integer(message.size),
+           as.logical(standardize), as.numeric(output), as.character(error.message), as.integer(message.size),
            PACKAGE = "PhyloMeasures")
 
   if(res[[13]] > 0)
@@ -138,9 +203,312 @@ mntd.query = function(tree, matrix, is.standardised = FALSE)
 
   return (res[[11]])
 
-} # mntd.query = function(...)
+} # mntd.query.uniform = function(...)
 
-cac.query = function(tree, matrix, chi, is.standardised = FALSE)
+ ###################################
+ # Weighted single sample measures #
+ ###################################
+
+pd.query.weighted = function(tree, matrix, abundance.weights, standardize = FALSE, 
+                             null.model="frequency.by.richness", reps=1000, seed)
+{
+  matrix.data = unlist(t(matrix))
+
+  if(any(is.na(matrix.data)) || any(matrix.data < 0))
+    stop("The input matrix contains negative or undefined values.\n\n")
+
+  if(any(as.logical(matrix.data) != matrix.data))
+    cat("\n Warning: the input matrix contains values which are not 0 or 1.\n")
+
+  my.seed = -1
+
+  if(hasArg(seed) == TRUE )
+    my.seed = seed
+
+  #dyn.load(paste("PhyloMeasures", .Platform$dynlib.ext, sep = ""))
+
+  number.of.edges = length(tree$edge)/2
+  number.of.leaves = length(tree$tip.label)
+
+  matrix.species = colnames(matrix)
+  matrix.rows = nrow(matrix)
+  matrix.columns = ncol(matrix)
+
+  output = vector(mode="numeric",matrix.rows)
+
+  abundance.names = names(abundance.weights)
+
+  error.message = as.character(paste0(rep(" ",length = 150), collapse=""))
+  message.size = 0
+
+  if(null.model == "frequency.by.richness" || standardize == FALSE)
+  {
+    res <-.C("pd_query_abundance_weighted",as.integer(length(tree$edge.length)), 
+             as.integer(number.of.leaves), as.integer(tree$edge), 
+             as.numeric(tree$edge.length), as.character(tree$tip.label), 
+             as.character(abundance.names), as.numeric(abundance.weights), as.character(matrix.species), 
+             as.integer(matrix.rows), as.integer(matrix.columns), as.integer(matrix.data), 
+             as.logical(standardize), as.numeric(output), 
+             as.character(error.message), as.integer(message.size),
+             PACKAGE = "PhyloMeasures")
+
+    if(res[[15]] > 0)
+      stop(substr(res[[14]],1,res[[15]]))
+
+    return (res[[13]])
+  }
+  else if(null.model == "sequential")
+  {
+    if(reps<=0)
+      stop("The requested number of repetitions is invalid.\n\n")
+
+    res <-.C("pd_query_weighted_sequential",as.integer(length(tree$edge.length)), 
+             as.integer(number.of.leaves), as.integer(tree$edge), 
+             as.numeric(tree$edge.length), as.character(tree$tip.label), 
+             as.character(abundance.names), as.numeric(abundance.weights), as.character(matrix.species), 
+             as.integer(matrix.rows), as.integer(matrix.columns), as.integer(matrix.data), 
+             as.logical(standardize), as.integer(reps), as.integer(my.seed), as.numeric(output), 
+             as.character(error.message), as.integer(message.size),
+             PACKAGE = "PhyloMeasures")
+
+    if(res[[17]] > 0)
+      stop(substr(res[[16]],1,res[[17]]))
+
+    return (res[[15]])
+  }
+  else
+    stop("The requested null model is invalid.\n\n")
+
+} # pd.query.weighted = function(...)
+
+mpd.query.weighted = function(tree, matrix, abundance.weights, standardize = FALSE, 
+                             null.model="frequency.by.richness", reps=1000, seed)
+{
+  matrix.data = unlist(t(matrix))
+
+  if(any(is.na(matrix.data)) || any(matrix.data < 0))
+    stop("The input matrix contains negative or undefined values.\n\n")
+
+  if(any(as.logical(matrix.data) != matrix.data))
+    cat("\n Warning: the input matrix contains values which are not 0 or 1.\n")
+
+  my.seed = -1
+
+  if(hasArg(seed) == TRUE )
+    my.seed = seed
+
+  #dyn.load(paste("PhyloMeasures", .Platform$dynlib.ext, sep = ""))
+
+  number.of.edges = length(tree$edge)/2
+  number.of.leaves = length(tree$tip.label)
+
+  matrix.species = colnames(matrix)
+  matrix.rows = nrow(matrix)
+  matrix.columns = ncol(matrix)
+
+  output = vector(mode="numeric",matrix.rows)
+
+  abundance.names = names(abundance.weights)
+
+  error.message = as.character(paste0(rep(" ",length = 150), collapse=""))
+  message.size = 0
+
+  if(null.model == "frequency.by.richness" || standardize == FALSE)
+  {
+    res <-.C("mpd_query_abundance_weighted",as.integer(length(tree$edge.length)), 
+             as.integer(number.of.leaves), as.integer(tree$edge), 
+             as.numeric(tree$edge.length), as.character(tree$tip.label), 
+             as.character(abundance.names), as.numeric(abundance.weights), as.character(matrix.species), 
+             as.integer(matrix.rows), as.integer(matrix.columns), as.integer(matrix.data), 
+             as.logical(standardize), as.numeric(output), 
+             as.character(error.message), as.integer(message.size),
+             PACKAGE = "PhyloMeasures")
+
+    if(res[[15]] > 0)
+      stop(substr(res[[14]],1,res[[15]]))
+
+    return (res[[13]])
+  }
+  else if(null.model == "sequential")
+  {
+    if(reps<=0)
+      stop("The requested number of repetitions is invalid.\n\n")
+
+    res <-.C("mpd_query_weighted_sequential",as.integer(length(tree$edge.length)), 
+             as.integer(number.of.leaves), as.integer(tree$edge), 
+             as.numeric(tree$edge.length), as.character(tree$tip.label), 
+             as.character(abundance.names), as.numeric(abundance.weights), as.character(matrix.species), 
+             as.integer(matrix.rows), as.integer(matrix.columns), as.integer(matrix.data), 
+             as.logical(standardize), as.integer(reps), as.integer(my.seed), as.numeric(output), 
+             as.character(error.message), as.integer(message.size),
+             PACKAGE = "PhyloMeasures")
+
+    if(res[[17]] > 0)
+      stop(substr(res[[16]],1,res[[17]]))
+
+    return (res[[15]])
+  }
+  else
+    stop("The requested null model is invalid.\n\n")
+
+} # mpd.query.weighted = function(...)
+
+mntd.query.weighted = function(tree, matrix, abundance.weights, standardize = FALSE, 
+                               null.model="frequency.by.richness", reps=1000, seed)
+{
+  matrix.data = unlist(t(matrix))
+
+  if(any(is.na(matrix.data)) || any(matrix.data < 0))
+    stop("The input matrix contains negative or undefined values.\n\n")
+
+  if(any(as.logical(matrix.data) != matrix.data))
+    cat("\n Warning: the input matrix contains values which are not 0 or 1.\n")
+
+  my.seed = -1
+
+  if(hasArg(seed) == TRUE )
+    my.seed = seed
+
+  #dyn.load(paste("PhyloMeasures", .Platform$dynlib.ext, sep = ""))
+
+  number.of.edges = length(tree$edge)/2
+  number.of.leaves = length(tree$tip.label)
+
+  matrix.species = colnames(matrix)
+  matrix.rows = nrow(matrix)
+  matrix.columns = ncol(matrix)
+
+  output = vector(mode="numeric",matrix.rows)
+
+  abundance.names = names(abundance.weights)
+
+  error.message = as.character(paste0(rep(" ",length = 150), collapse=""))
+  message.size = 0
+
+  if(null.model == "frequency.by.richness" || standardize == FALSE)
+  {
+    res <-.C("mntd_query_abundance_weighted",as.integer(length(tree$edge.length)), 
+             as.integer(number.of.leaves), as.integer(tree$edge), 
+             as.numeric(tree$edge.length), as.character(tree$tip.label), 
+             as.character(abundance.names), as.numeric(abundance.weights), as.character(matrix.species), 
+             as.integer(matrix.rows), as.integer(matrix.columns), as.integer(matrix.data), 
+             as.logical(standardize), as.numeric(output), 
+             as.character(error.message), as.integer(message.size),
+             PACKAGE = "PhyloMeasures")
+
+    if(res[[15]] > 0)
+      stop(substr(res[[14]],1,res[[15]]))
+
+    return (res[[13]])
+  }
+  else if(null.model == "sequential")
+  {
+    if(reps<=0)
+      stop("The requested number of repetitions is invalid.\n\n")
+
+    res <-.C("mntd_query_weighted_sequential",as.integer(length(tree$edge.length)), 
+             as.integer(number.of.leaves), as.integer(tree$edge), 
+             as.numeric(tree$edge.length), as.character(tree$tip.label), 
+             as.character(abundance.names), as.numeric(abundance.weights), as.character(matrix.species), 
+             as.integer(matrix.rows), as.integer(matrix.columns), as.integer(matrix.data), 
+             as.logical(standardize), as.integer(reps), as.integer(my.seed), as.numeric(output), 
+             as.character(error.message), as.integer(message.size),
+             PACKAGE = "PhyloMeasures")
+
+    if(res[[17]] > 0)
+      stop(substr(res[[16]],1,res[[17]]))
+
+    return (res[[15]])
+  }
+  else
+    stop("The requested null model is invalid.\n\n")
+
+} # mntd.query.weighted = function(...)
+
+
+cac.query.weighted = function(tree, matrix, chi, abundance.weights, standardize = FALSE, 
+                              null.model="sequential", reps=1000, seed)
+{
+  matrix.data = unlist(t(matrix))
+
+  if(any(is.na(matrix.data)) || any(matrix.data < 0))
+    stop("The input matrix contains negative or undefined values.\n\n")
+
+  if(any(as.logical(matrix.data) != matrix.data))
+    cat("\n Warning: the input matrix contains values which are not 0 or 1.\n")
+
+  my.seed = -1
+
+  if(hasArg(seed) == TRUE )
+    my.seed = seed
+
+  #dyn.load(paste("PhyloMeasures", .Platform$dynlib.ext, sep = ""))
+
+  number.of.edges = length(tree$edge)/2
+  number.of.leaves = length(tree$tip.label)
+
+  matrix.species = colnames(matrix)
+  matrix.rows = nrow(matrix)
+  matrix.columns = ncol(matrix)
+
+  output = vector(mode="numeric",matrix.rows)
+
+  abundance.names = names(abundance.weights)
+
+  error.message = as.character(paste0(rep(" ",length = 150), collapse=""))
+  message.size = 0
+
+  if(null.model == "sequential")
+  {
+    if(reps<=0)
+      stop("The requested number of repetitions is invalid.\n\n")
+
+    res <-.C("cac_query_weighted_sequential",as.integer(length(tree$edge.length)), 
+             as.integer(number.of.leaves), as.integer(tree$edge), 
+             as.numeric(tree$edge.length), as.character(tree$tip.label), as.numeric(chi),
+             as.character(abundance.names), as.numeric(abundance.weights), as.character(matrix.species), 
+             as.integer(matrix.rows), as.integer(matrix.columns), as.integer(matrix.data), 
+             as.logical(standardize), as.integer(reps), as.integer(my.seed), as.numeric(output), 
+             as.character(error.message), as.integer(message.size),
+             PACKAGE = "PhyloMeasures")
+
+    if(res[[18]] > 0)
+      stop(substr(res[[17]],1,res[[18]]))
+
+    return (res[[16]])
+  }
+  else
+    stop("The requested null model is invalid.\n\n")
+
+} # cac.query.weighted = function(...)
+
+################################################
+################################################
+################################################
+
+cac.query = function(tree, matrix, chi, standardize = FALSE, 
+                     null.model="uniform", abundance.weights, reps=1000, seed)
+{
+  if(null.model == "uniform"  || standardize == FALSE)
+    cac.query.uniform(tree, matrix, chi, standardize)   
+  else
+  {
+    if(hasArg(abundance.weights) == FALSE )
+      stop("No abundance weights defined. \n\n")
+
+    my.seed = -1
+
+    if(hasArg(seed) == TRUE )
+      my.seed = seed
+
+    cac.query.weighted(tree, matrix, chi, abundance.weights, standardize, null.model, reps, my.seed)
+
+  } # else of if(null.model == "uniform" || standardize == FALSE)
+
+} # cac.query = function(...)
+
+
+cac.query.uniform = function(tree, matrix, chi, standardize = FALSE)
 {
   matrix.data = unlist(t(matrix))
 
@@ -167,7 +535,7 @@ cac.query = function(tree, matrix, chi, is.standardised = FALSE)
   res <-.C("cac_query",as.integer(length(tree$edge.length)), as.integer(number.of.leaves), as.integer(tree$edge), 
            as.numeric(tree$edge.length), as.character(tree$tip.label), as.numeric(chi), as.character(matrix.species), 
            as.integer(matrix.rows), as.integer(matrix.columns), as.integer(matrix.data), 
-           as.logical(is.standardised), as.numeric(output), as.character(error.message), as.integer(message.size),
+           as.logical(standardize), as.numeric(output), as.character(error.message), as.integer(message.size),
            PACKAGE = "PhyloMeasures")
 
   if(res[[14]] > 0)
@@ -175,10 +543,10 @@ cac.query = function(tree, matrix, chi, is.standardised = FALSE)
 
   return (res[[12]])
 
-} # cac.query = function(...)
+} # cac.query.uniform = function(...)
 
 
-cbl.query = function(tree, matrix.a, matrix.b = NULL, query.matrix=NULL, is.standardised = FALSE)
+cbl.query = function(tree, matrix.a, matrix.b = NULL, query.matrix=NULL, standardize = FALSE)
 {
   matrix.rows.a = nrow(matrix.a)
   matrix.data.a = unlist(t(matrix.a))
@@ -284,7 +652,7 @@ cbl.query = function(tree, matrix.a, matrix.b = NULL, query.matrix=NULL, is.stan
              as.integer(matrix.rows.a), as.integer(matrix.columns.a), as.integer(matrix.data.a), 
              as.character(matrix.species.b), as.integer(matrix.rows.b), as.integer(matrix.columns.b), 
              as.integer(matrix.data.b), as.integer(query.matrix.rows), as.integer(query.matrix.data),
-             as.logical(is.standardised), as.numeric(output), as.character(error.message), as.integer(message.size),
+             as.logical(standardize), as.numeric(output), as.character(error.message), as.integer(message.size),
            PACKAGE = "PhyloMeasures")
 
     if(res[[19]] > 0)
@@ -300,7 +668,7 @@ cbl.query = function(tree, matrix.a, matrix.b = NULL, query.matrix=NULL, is.stan
              as.integer(matrix.rows.a), as.integer(matrix.columns.a), as.integer(matrix.data.a), 
              as.character(matrix.species.b), as.integer(matrix.rows.b), as.integer(matrix.columns.b), 
              as.integer(matrix.data.b), as.integer(query.matrix.rows), as.integer(NULL), 
-             as.logical(is.standardised), as.numeric(output), as.character(error.message), as.integer(message.size),
+             as.logical(standardize), as.numeric(output), as.character(error.message), as.integer(message.size),
            PACKAGE = "PhyloMeasures")
 
     if(res[[19]] > 0)
@@ -316,7 +684,7 @@ cbl.query = function(tree, matrix.a, matrix.b = NULL, query.matrix=NULL, is.stan
              as.numeric(tree$edge.length), as.character(tree$tip.label), as.character(matrix.species.a), 
              as.integer(matrix.rows.a), as.integer(matrix.columns.a), as.integer(matrix.data.a), 
              as.character(NULL), as.integer(matrix.rows.b), as.integer(matrix.columns.b), as.integer(NULL), 
-             as.integer(query.matrix.rows), as.integer(query.matrix.data), as.logical(is.standardised), 
+             as.integer(query.matrix.rows), as.integer(query.matrix.data), as.logical(standardize), 
              as.numeric(output), as.character(error.message), as.integer(message.size),
            PACKAGE = "PhyloMeasures")
 
@@ -332,7 +700,7 @@ cbl.query = function(tree, matrix.a, matrix.b = NULL, query.matrix=NULL, is.stan
              as.numeric(tree$edge.length), as.character(tree$tip.label), as.character(matrix.species.a), 
              as.integer(matrix.rows.a), as.integer(matrix.columns.a), as.integer(matrix.data.a), 
              as.character(NULL), as.integer(matrix.rows.b), as.integer(matrix.columns.b), as.integer(NULL), 
-             as.integer(query.matrix.rows), as.integer(NULL), as.logical(is.standardised), 
+             as.integer(query.matrix.rows), as.integer(NULL), as.logical(standardize), 
              as.numeric(output), as.character(error.message), as.integer(message.size),
            PACKAGE = "PhyloMeasures")
 
@@ -346,7 +714,7 @@ cbl.query = function(tree, matrix.a, matrix.b = NULL, query.matrix=NULL, is.stan
 } # cbl.query = function(...)
 
 
-cd.query = function(tree, matrix.a, matrix.b = NULL, query.matrix=NULL, is.standardised = FALSE)
+cd.query = function(tree, matrix.a, matrix.b = NULL, query.matrix=NULL, standardize = FALSE)
 {
   matrix.rows.a = nrow(matrix.a)
   matrix.data.a = unlist(t(matrix.a))
@@ -455,7 +823,7 @@ cd.query = function(tree, matrix.a, matrix.b = NULL, query.matrix=NULL, is.stand
              as.integer(matrix.rows.a), as.integer(matrix.columns.a), as.integer(matrix.data.a), 
              as.character(matrix.species.b), as.integer(matrix.rows.b), as.integer(matrix.columns.b), 
              as.integer(matrix.data.b), as.integer(query.matrix.rows),
-             as.integer(query.matrix.data), as.logical(is.standardised),
+             as.integer(query.matrix.data), as.logical(standardize),
              as.numeric(output), as.character(error.message), as.integer(message.size),
            PACKAGE = "PhyloMeasures")
 
@@ -472,7 +840,7 @@ cd.query = function(tree, matrix.a, matrix.b = NULL, query.matrix=NULL, is.stand
              as.integer(matrix.rows.a), as.integer(matrix.columns.a), as.integer(matrix.data.a), 
              as.character(matrix.species.b), as.integer(matrix.rows.b), as.integer(matrix.columns.b), 
              as.integer(matrix.data.b), as.integer(query.matrix.rows),
-             as.integer(NULL), as.logical(is.standardised), as.numeric(output), 
+             as.integer(NULL), as.logical(standardize), as.numeric(output), 
              as.character(error.message), as.integer(message.size),
            PACKAGE = "PhyloMeasures")
 
@@ -490,7 +858,7 @@ cd.query = function(tree, matrix.a, matrix.b = NULL, query.matrix=NULL, is.stand
              as.integer(matrix.rows.a), as.integer(matrix.columns.a), as.integer(matrix.data.a), 
              as.character(NULL), as.integer(matrix.rows.b), as.integer(matrix.columns.b), 
              as.integer(NULL), as.integer(query.matrix.rows),
-             as.integer(query.matrix.data), as.logical(is.standardised), 
+             as.integer(query.matrix.data), as.logical(standardize), 
              as.numeric(output), as.character(error.message), as.integer(message.size),
            PACKAGE = "PhyloMeasures")
 
@@ -506,7 +874,7 @@ cd.query = function(tree, matrix.a, matrix.b = NULL, query.matrix=NULL, is.stand
              as.numeric(tree$edge.length), as.character(tree$tip.label), as.character(matrix.species.a), 
              as.integer(matrix.rows.a), as.integer(matrix.columns.a), as.integer(matrix.data.a), 
              as.character(NULL), as.integer(matrix.rows.b), as.integer(matrix.columns.b), as.integer(NULL), 
-             as.integer(query.matrix.rows), as.integer(NULL), as.logical(is.standardised), 
+             as.integer(query.matrix.rows), as.integer(NULL), as.logical(standardize), 
              as.numeric(output), as.character(error.message), as.integer(message.size),
            PACKAGE = "PhyloMeasures")
 
@@ -1399,7 +1767,30 @@ unifrac.query = function(tree, matrix.a, matrix.b = NULL, query.matrix=NULL)
 #################################################
 #################################################
 
-pd.moments = function(tree, sample.sizes, comp.expectation = TRUE, comp.deviation = TRUE)
+pd.moments = function(tree, sample.sizes, comp.expectation = TRUE, comp.deviation = TRUE, 
+                      null.model="uniform", abundance.weights, reps=1000, seed)
+{
+  if(null.model == "uniform")
+    pd.moments.uniform(tree, sample.sizes, comp.expectation, comp.deviation)   
+  else
+  {
+    if(hasArg(abundance.weights) == FALSE )
+      stop("No abundance weights defined. \n\n")
+
+    my.seed = -1
+
+    if(hasArg(seed) == TRUE )
+      my.seed = seed
+
+    pd.moments.weighted(tree, sample.sizes, abundance.weights, comp.expectation, 
+                        comp.deviation, null.model, reps, my.seed)
+
+  } # else of if(null.model == "uniform")
+
+} # pd.moments(...)
+
+
+pd.moments.uniform = function(tree, sample.sizes, comp.expectation = TRUE, comp.deviation = TRUE)
 {
   number.of.leaves = length(tree$tip.label)
 
@@ -1410,7 +1801,6 @@ pd.moments = function(tree, sample.sizes, comp.expectation = TRUE, comp.deviatio
   if(any(as.integer(sample.sizes) != sample.sizes))
     stop("The list with the sample sizes contains non-integer values.\n\n")
  
-
   #dyn.load(paste("PhyloMeasures", .Platform$dynlib.ext, sep = ""))
 
   number.of.edges = length(tree$edge)/2
@@ -1446,10 +1836,32 @@ pd.moments = function(tree, sample.sizes, comp.expectation = TRUE, comp.deviatio
 
   return (result)
 
-} # pd.moments = function(...)
+} # pd.moments.uniform = function(...)
 
 
-mpd.moments = function(tree, sample.sizes, comp.expectation = TRUE, comp.deviation = TRUE)
+mpd.moments = function(tree, sample.sizes, comp.expectation = TRUE, comp.deviation = TRUE, 
+                      null.model="uniform", abundance.weights, reps=1000, seed)
+{
+  if(null.model == "uniform")
+    mpd.moments.uniform(tree, sample.sizes, comp.expectation, comp.deviation)   
+  else
+  {
+    if(hasArg(abundance.weights) == FALSE )
+      stop("No abundance weights defined. \n\n")
+
+    my.seed = -1
+
+    if(hasArg(seed) == TRUE )
+      my.seed = seed
+
+    mpd.moments.weighted(tree, sample.sizes, abundance.weights, comp.expectation, 
+                         comp.deviation, null.model, reps, my.seed)
+
+  } # else of if(null.model == "uniform")
+
+} # mpd.moments(...)
+
+mpd.moments.uniform = function(tree, sample.sizes, comp.expectation = TRUE, comp.deviation = TRUE)
 {
   number.of.leaves = length(tree$tip.label)
 
@@ -1496,10 +1908,31 @@ mpd.moments = function(tree, sample.sizes, comp.expectation = TRUE, comp.deviati
 
   return (result)
 
-} # mpd.moments = function(...)
+} # mpd.moments.uniform = function(...)
 
+mntd.moments = function(tree, sample.sizes, comp.expectation = TRUE, comp.deviation = TRUE, 
+                      null.model="uniform", abundance.weights, reps=1000, seed)
+{
+  if(null.model == "uniform")
+    mntd.moments.uniform(tree, sample.sizes, comp.expectation, comp.deviation)   
+  else
+  {
+    if(hasArg(abundance.weights) == FALSE )
+      stop("No abundance weights defined. \n\n")
 
-mntd.moments = function(tree, sample.sizes, comp.expectation = TRUE, comp.deviation = TRUE)
+    my.seed = -1
+
+    if(hasArg(seed) == TRUE )
+      my.seed = seed
+
+    mntd.moments.weighted(tree, sample.sizes, abundance.weights, comp.expectation, 
+                          comp.deviation, null.model, reps, my.seed)
+
+  } # else of if(null.model == "uniform")
+
+} # mntd.moments(...)
+
+mntd.moments.uniform = function(tree, sample.sizes, comp.expectation = TRUE, comp.deviation = TRUE)
 {
   number.of.leaves = length(tree$tip.label)
 
@@ -1546,10 +1979,396 @@ mntd.moments = function(tree, sample.sizes, comp.expectation = TRUE, comp.deviat
 
   return (result)
 
-} # mntd.moments = function(...)
+} # mntd.moments.uniform = function(...)
 
 
-cac.moments <- function(tree, chi, sample.sizes, k=2)
+###############################################################################################################
+###############################################################################################################
+###############################################################################################################
+###############################################################################################################
+
+pd.moments.weighted = function(tree, sample.sizes, abundance.weights, comp.expectation = TRUE, 
+                               comp.deviation = TRUE, null.model = "frequency.by.richness", 
+                               reps=1000, seed)
+{
+  number.of.leaves = length(tree$tip.label)
+  number.of.weights = length(abundance.weights)
+
+  if(any(is.na(sample.sizes))||any(sample.sizes < 0)||any(sample.sizes > number.of.leaves))
+    stop("The list with the sample sizes contains values which are undefined, or out of range. \n\n")
+
+  if(number.of.weights != number.of.leaves)
+    stop("The number of occurence weights is different than the number of leaves in the tree.\n\n")
+
+  if(any(as.integer(sample.sizes) != sample.sizes))
+    stop("The list with the sample sizes contains non-integer values.\n\n")
+ 
+  my.seed = -1
+
+  if(hasArg(seed) == TRUE )
+    my.seed = seed
+
+
+  #dyn.load(paste("PhyloMeasures", .Platform$dynlib.ext, sep = ""))
+
+  number.of.edges = length(tree$edge)/2
+  vector.size = length(sample.sizes)
+
+  output.size = 0 
+
+  if(comp.expectation == TRUE)
+    output.size = output.size + vector.size
+
+  if(comp.deviation == TRUE)
+    output.size = output.size + vector.size
+
+  output = vector(mode="numeric",output.size)
+  error.message = paste0(rep(" ",length = 150), collapse="")
+  message.size = 0
+  abundance.names = names(abundance.weights)
+
+  if(null.model == "frequency.by.richness")
+  {
+    res <-.C("pd_moments_abundance_weighted",as.integer(length(tree$edge.length)), as.integer(number.of.leaves), 
+             as.integer(tree$edge), as.numeric(tree$edge.length), as.character(tree$tip.label), 
+             as.integer(vector.size), as.integer(sample.sizes), 
+             as.character(abundance.names), as.numeric(abundance.weights), as.logical(comp.expectation), 
+             as.logical(comp.deviation), as.numeric(output),as.character(error.message),as.integer(message.size),
+             PACKAGE = "PhyloMeasures")
+
+    if(res[[14]] > 0)
+      stop(substr(res[[13]],1,res[[14]]))
+
+    result = NULL
+
+    if( comp.expectation == TRUE && comp.deviation == TRUE)
+      result = matrix(res[[12]], nrow=output.size/2, ncol=2)
+    else
+      result = res[[12]]
+
+    return (result)
+  }
+  else if(null.model == "sequential")
+  {
+    if(reps<=0)
+      stop("The requested number of repetitions is invalid.\n\n")
+
+    res <-.C("pd_moments_weighted_sequential",as.integer(length(tree$edge.length)), as.integer(number.of.leaves), 
+             as.integer(tree$edge), as.numeric(tree$edge.length), as.character(tree$tip.label), 
+             as.integer(vector.size), as.integer(sample.sizes), 
+             as.character(abundance.names), as.numeric(abundance.weights), as.logical(comp.expectation), 
+             as.logical(comp.deviation), as.integer(reps), as.integer(my.seed), as.numeric(output),
+             as.character(error.message),as.integer(message.size),
+             PACKAGE = "PhyloMeasures")
+
+    if(res[[16]] > 0)
+      stop(substr(res[[15]],1,res[[16]]))
+
+    result = NULL
+
+    if( comp.expectation == TRUE && comp.deviation == TRUE)
+      result = matrix(res[[14]], nrow=output.size/2, ncol=2)
+    else
+      result = res[[14]]
+
+    return (result)
+
+  }
+  else
+    stop("The requested null model is invalid.\n\n")
+
+} # pd.moments.weighted = function(...)
+
+
+mpd.moments.weighted = function(tree, sample.sizes, abundance.weights, comp.expectation = TRUE, 
+                                comp.deviation = TRUE, null.model = "frequency.by.richness", 
+                                reps=1000, seed)
+{
+  number.of.leaves = length(tree$tip.label)
+  number.of.weights = length(abundance.weights)
+
+  if(any(is.na(sample.sizes))||any(sample.sizes < 0)||any(sample.sizes > number.of.leaves))
+    stop("The list with the sample sizes contains values which are undefined, or out of range. \n\n")
+
+  if(number.of.weights != number.of.leaves)
+    stop("The number of occurence weights is different than the number of leaves in the tree.\n\n")
+
+  if(any(as.integer(sample.sizes) != sample.sizes))
+    stop("The list with the sample sizes contains non-integer values.\n\n")
+ 
+  my.seed = -1
+
+  if(hasArg(seed) == TRUE )
+    my.seed = seed
+
+  #dyn.load(paste("PhyloMeasures", .Platform$dynlib.ext, sep = ""))
+
+  number.of.edges = length(tree$edge)/2
+  vector.size = length(sample.sizes)
+
+  output.size = 0 
+
+  if(comp.expectation == TRUE)
+    output.size = output.size + vector.size
+
+  if(comp.deviation == TRUE)
+    output.size = output.size + vector.size
+
+  output = vector(mode="numeric",output.size)
+  error.message = paste0(rep(" ",length = 150), collapse="")
+  message.size = 0
+  abundance.names = names(abundance.weights)
+
+  if(null.model == "frequency.by.richness")
+  {
+    res <-.C("mpd_moments_abundance_weighted",as.integer(length(tree$edge.length)), as.integer(number.of.leaves), 
+             as.integer(tree$edge), as.numeric(tree$edge.length), as.character(tree$tip.label), 
+             as.integer(vector.size), as.integer(sample.sizes), 
+             as.character(abundance.names), as.numeric(abundance.weights), as.logical(comp.expectation), 
+             as.logical(comp.deviation), as.numeric(output),as.character(error.message),as.integer(message.size),
+             PACKAGE = "PhyloMeasures")
+
+    if(res[[14]] > 0)
+      stop(substr(res[[13]],1,res[[14]]))
+
+    result = NULL
+
+    if( comp.expectation == TRUE && comp.deviation == TRUE)
+      result = matrix(res[[12]], nrow=output.size/2, ncol=2)
+    else
+      result = res[[12]]
+
+    return (result)
+  }
+  else if(null.model == "sequential")
+  {
+    if(reps<=0)
+      stop("The requested number of repetitions is invalid.\n\n")
+
+    res <-.C("mpd_moments_weighted_sequential",as.integer(length(tree$edge.length)), as.integer(number.of.leaves), 
+             as.integer(tree$edge), as.numeric(tree$edge.length), as.character(tree$tip.label), 
+             as.integer(vector.size), as.integer(sample.sizes), 
+             as.character(abundance.names), as.numeric(abundance.weights), as.logical(comp.expectation), 
+             as.logical(comp.deviation), as.integer(reps), as.integer(my.seed), as.numeric(output),
+             as.character(error.message),as.integer(message.size),
+             PACKAGE = "PhyloMeasures")
+
+    if(res[[16]] > 0)
+      stop(substr(res[[15]],1,res[[16]]))
+
+    result = NULL
+
+    if( comp.expectation == TRUE && comp.deviation == TRUE)
+      result = matrix(res[[14]], nrow=output.size/2, ncol=2)
+    else
+      result = res[[14]]
+
+    return (result)
+
+  }
+  else
+    stop("The requested null model is invalid.\n\n")
+
+} # mpd.moments.weighted = function(...)
+
+
+mntd.moments.weighted = function(tree, sample.sizes, abundance.weights, comp.expectation = TRUE, 
+                                 comp.deviation = TRUE, null.model = "frequency.by.richness", 
+                                 reps=1000, seed)
+{
+  number.of.leaves = length(tree$tip.label)
+  number.of.weights = length(abundance.weights)
+
+  if(any(is.na(sample.sizes))||any(sample.sizes < 0)||any(sample.sizes > number.of.leaves))
+    stop("The list with the sample sizes contains values which are undefined, or out of range. \n\n")
+
+  if(number.of.weights != number.of.leaves)
+    stop("The number of occurence weights is different than the number of leaves in the tree.\n\n")
+
+  if(any(as.integer(sample.sizes) != sample.sizes))
+    stop("The list with the sample sizes contains non-integer values.\n\n")
+ 
+  my.seed = -1
+
+  if(hasArg(seed) == TRUE )
+    my.seed = seed
+
+
+  #dyn.load(paste("PhyloMeasures", .Platform$dynlib.ext, sep = ""))
+
+  number.of.edges = length(tree$edge)/2
+  vector.size = length(sample.sizes)
+
+  output.size = 0 
+
+  if(comp.expectation == TRUE)
+    output.size = output.size + vector.size
+
+  if(comp.deviation == TRUE)
+    output.size = output.size + vector.size
+
+  output = vector(mode="numeric",output.size)
+  error.message = paste0(rep(" ",length = 150), collapse="")
+  message.size = 0
+  abundance.names = names(abundance.weights)
+
+  if(null.model == "frequency.by.richness")
+  {
+    res <-.C("mntd_moments_abundance_weighted",as.integer(length(tree$edge.length)), as.integer(number.of.leaves), 
+             as.integer(tree$edge), as.numeric(tree$edge.length), as.character(tree$tip.label), 
+             as.integer(vector.size), as.integer(sample.sizes), 
+             as.character(abundance.names), as.numeric(abundance.weights), as.logical(comp.expectation), 
+             as.logical(comp.deviation), as.numeric(output),as.character(error.message),as.integer(message.size),
+             PACKAGE = "PhyloMeasures")
+
+    if(res[[14]] > 0)
+      stop(substr(res[[13]],1,res[[14]]))
+
+    result = NULL
+
+    if( comp.expectation == TRUE && comp.deviation == TRUE)
+      result = matrix(res[[12]], nrow=output.size/2, ncol=2)
+    else
+      result = res[[12]]
+
+    return (result)
+  }
+  else if(null.model == "sequential")
+  {
+    if(reps<=0)
+      stop("The requested number of repetitions is invalid.\n\n")
+
+    res <-.C("mntd_moments_weighted_sequential",as.integer(length(tree$edge.length)), as.integer(number.of.leaves), 
+             as.integer(tree$edge), as.numeric(tree$edge.length), as.character(tree$tip.label), 
+             as.integer(vector.size), as.integer(sample.sizes), 
+             as.character(abundance.names), as.numeric(abundance.weights), as.logical(comp.expectation), 
+             as.logical(comp.deviation), as.integer(reps), as.integer(my.seed), as.numeric(output),
+             as.character(error.message),as.integer(message.size),
+             PACKAGE = "PhyloMeasures")
+
+    if(res[[16]] > 0)
+      stop(substr(res[[15]],1,res[[16]]))
+
+    result = NULL
+
+    if( comp.expectation == TRUE && comp.deviation == TRUE)
+      result = matrix(res[[14]], nrow=output.size/2, ncol=2)
+    else
+      result = res[[14]]
+
+    return (result)
+
+  }
+  else
+    stop("The requested null model is invalid.\n\n")
+
+} # mntd.moments.weighted = function(...)
+
+
+cac.moments.weighted = function(tree, chi, sample.sizes, abundance.weights, comp.expectation = TRUE, 
+                                comp.deviation = TRUE, null.model = "frequency.by.richness", 
+                                reps=1000, seed)
+{
+  number.of.leaves = length(tree$tip.label)
+  number.of.weights = length(abundance.weights)
+
+  if(any(is.na(sample.sizes))||any(sample.sizes < 0)||any(sample.sizes > number.of.leaves))
+    stop("The list with the sample sizes contains values which are undefined, or out of range. \n\n")
+
+  if(number.of.weights != number.of.leaves)
+    stop("The number of occurence weights is different than the number of leaves in the tree.\n\n")
+
+  if(any(as.integer(sample.sizes) != sample.sizes))
+    stop("The list with the sample sizes contains non-integer values.\n\n")
+ 
+  my.seed = -1
+
+  if(hasArg(seed) == TRUE )
+    my.seed = seed
+
+  #dyn.load(paste("PhyloMeasures", .Platform$dynlib.ext, sep = ""))
+
+  number.of.edges = length(tree$edge)/2
+  vector.size = length(sample.sizes)
+
+  output.size = 0 
+
+  if(comp.expectation == TRUE)
+    output.size = output.size + vector.size
+
+  if(comp.deviation == TRUE)
+    output.size = output.size + vector.size
+
+  output = vector(mode="numeric",output.size)
+  error.message = paste0(rep(" ",length = 150), collapse="")
+  message.size = 0
+  abundance.names = names(abundance.weights)
+
+  if(null.model == "sequential")
+  {
+    if(reps<=0)
+      stop("The requested number of repetitions is invalid.\n\n")
+
+    res <-.C("cac_moments_weighted_sequential",as.integer(length(tree$edge.length)), as.integer(number.of.leaves), 
+             as.integer(tree$edge), as.numeric(tree$edge.length), as.character(tree$tip.label), 
+             as.numeric(chi), as.integer(vector.size), as.integer(sample.sizes), 
+             as.character(abundance.names), as.numeric(abundance.weights), as.logical(comp.expectation), 
+             as.logical(comp.deviation), as.integer(reps), as.integer(my.seed), as.numeric(output),
+             as.character(error.message),as.integer(message.size),
+             PACKAGE = "PhyloMeasures")
+
+    if(res[[17]] > 0)
+      stop(substr(res[[16]],1,res[[17]]))
+
+    result = NULL
+
+    if( comp.expectation == TRUE && comp.deviation == TRUE)
+      result = matrix(res[[15]], nrow=output.size/2, ncol=2)
+    else
+      result = res[[15]]
+
+    return (result)
+
+  }
+  else
+    stop("The requested null model is invalid.\n\n")
+
+} # cac.moments.weighted = function(...)
+
+###############################################################################################################
+###############################################################################################################
+###############################################################################################################
+###############################################################################################################
+
+cac.moments = function(tree, chi, sample.sizes, k=2,  
+                       null.model="uniform", abundance.weights, reps=1000, seed)
+{
+  if(null.model == "uniform")
+    cac.moments.uniform(tree, chi, sample.sizes, k)   
+  else
+  {
+    if(hasArg(abundance.weights) == FALSE )
+      stop("No abundance weights defined. \n\n")
+
+    my.seed = -1
+
+    if(hasArg(seed) == TRUE )
+      my.seed = seed
+
+    if(k==2)
+      cac.moments.weighted(tree, chi, sample.sizes, abundance.weights, comp.expectation=TRUE, 
+                           comp.deviation=TRUE, null.model, reps, my.seed)
+    else if(k==1)
+      cac.moments.weighted(tree, chi, sample.sizes, abundance.weights, comp.expectation=TRUE, 
+                           comp.deviation=FALSE, null.model, reps, my.seed)
+    else
+      stop("Invalid number of requested moments. \n\n")
+
+  } # else of if(null.model == "uniform")
+
+} # cac.moments(...)
+
+cac.moments.uniform <- function(tree, chi, sample.sizes, k=2)
 {
   number.of.leaves = length(tree$tip.label)
 
@@ -1684,3 +2503,305 @@ cd.moments = function(tree, sample.sizes, comp.expectation = TRUE, comp.deviatio
   return (result)
 
 } # cd.moments = function(...)
+
+
+#######################################
+## Functions that calculate p-values ##
+#######################################
+
+pd.pvalues = function(tree, matrix, null.model="uniform", 
+                      abundance.weights, reps=1000, seed)
+{
+  matrix.data = unlist(t(matrix))
+
+  if(any(is.na(matrix.data)) || any(matrix.data < 0))
+    stop("The input matrix contains negative or undefined values.\n\n")
+
+  if(any(as.logical(matrix.data) != matrix.data))
+    cat("\n Warning: the input matrix contains values which are not 0 or 1.\n")
+
+  my.seed = -1
+
+  if(hasArg(seed) == TRUE )
+    my.seed = seed
+
+  #dyn.load(paste("PhyloMeasures", .Platform$dynlib.ext, sep = ""))
+
+  number.of.edges = length(tree$edge)/2
+  number.of.leaves = length(tree$tip.label)
+
+  matrix.species = colnames(matrix)
+  matrix.rows = nrow(matrix)
+  matrix.columns = ncol(matrix)
+
+  output = vector(mode="numeric",matrix.rows)
+
+  error.message = as.character(paste0(rep(" ",length = 150), collapse=""))
+  message.size = 0
+
+  if(reps<=0)
+    stop("The requested number of repetitions is invalid.\n\n")
+
+  if(null.model == "uniform" )
+  {
+    res <-.C("pd_pvalues_uniform",as.integer(length(tree$edge.length)), 
+             as.integer(number.of.leaves), as.integer(tree$edge), 
+             as.numeric(tree$edge.length), as.character(tree$tip.label), 
+             as.character(matrix.species), as.integer(matrix.rows), as.integer(matrix.columns), 
+             as.integer(matrix.data), as.integer(reps), as.integer(my.seed), as.numeric(output), 
+             as.character(error.message), as.integer(message.size),
+             PACKAGE = "PhyloMeasures")
+
+    if(res[[14]] > 0)
+      stop(substr(res[[13]],1,res[[14]]))
+
+    return (res[[12]])
+  }
+  else if(null.model == "sequential")
+  {
+    if(hasArg(abundance.weights) == FALSE)
+      stop("No abundance weights specified.\n\n")
+
+    abundance.names = names(abundance.weights)
+
+    res <-.C("pd_pvalues_weighted_sequential",as.integer(length(tree$edge.length)), 
+             as.integer(number.of.leaves), as.integer(tree$edge), 
+             as.numeric(tree$edge.length), as.character(tree$tip.label), 
+             as.character(abundance.names), as.numeric(abundance.weights), as.character(matrix.species), 
+             as.integer(matrix.rows), as.integer(matrix.columns), as.integer(matrix.data), 
+             as.integer(reps), as.integer(my.seed), as.numeric(output), 
+             as.character(error.message), as.integer(message.size),
+             PACKAGE = "PhyloMeasures")
+
+    if(res[[16]] > 0)
+      stop(substr(res[[15]],1,res[[16]]))
+
+    return (res[[14]])
+  }
+  else
+    stop("The requested null model is invalid.\n\n")
+
+} # pd.pvalues = function(...)
+
+mpd.pvalues = function(tree, matrix, null.model="uniform", 
+                       abundance.weights, reps=1000, seed)
+{
+  matrix.data = unlist(t(matrix))
+
+  if(any(is.na(matrix.data)) || any(matrix.data < 0))
+    stop("The input matrix contains negative or undefined values.\n\n")
+
+  if(any(as.logical(matrix.data) != matrix.data))
+    cat("\n Warning: the input matrix contains values which are not 0 or 1.\n")
+
+  my.seed = -1
+
+  if(hasArg(seed) == TRUE )
+    my.seed = seed
+
+  #dyn.load(paste("PhyloMeasures", .Platform$dynlib.ext, sep = ""))
+
+  number.of.edges = length(tree$edge)/2
+  number.of.leaves = length(tree$tip.label)
+
+  matrix.species = colnames(matrix)
+  matrix.rows = nrow(matrix)
+  matrix.columns = ncol(matrix)
+
+  output = vector(mode="numeric",matrix.rows)
+
+  error.message = as.character(paste0(rep(" ",length = 150), collapse=""))
+  message.size = 0
+
+  if(reps<=0)
+    stop("The requested number of repetitions is invalid.\n\n")
+
+  if(null.model == "uniform" )
+  {
+    res <-.C("mpd_pvalues_uniform",as.integer(length(tree$edge.length)), 
+             as.integer(number.of.leaves), as.integer(tree$edge), 
+             as.numeric(tree$edge.length), as.character(tree$tip.label), 
+             as.character(matrix.species), as.integer(matrix.rows), as.integer(matrix.columns), 
+             as.integer(matrix.data), as.integer(reps), as.integer(my.seed), as.numeric(output), 
+             as.character(error.message), as.integer(message.size),
+             PACKAGE = "PhyloMeasures")
+
+    if(res[[14]] > 0)
+      stop(substr(res[[13]],1,res[[14]]))
+
+    return (res[[12]])
+  }
+  else if(null.model == "sequential")
+  {
+    if(hasArg(abundance.weights) == FALSE)
+      stop("No abundance weights specified.\n\n")
+
+    abundance.names = names(abundance.weights)
+
+    res <-.C("mpd_pvalues_weighted_sequential",as.integer(length(tree$edge.length)), 
+             as.integer(number.of.leaves), as.integer(tree$edge), 
+             as.numeric(tree$edge.length), as.character(tree$tip.label), 
+             as.character(abundance.names), as.numeric(abundance.weights), as.character(matrix.species), 
+             as.integer(matrix.rows), as.integer(matrix.columns), as.integer(matrix.data), 
+             as.integer(reps), as.integer(my.seed), as.numeric(output), 
+             as.character(error.message), as.integer(message.size),
+             PACKAGE = "PhyloMeasures")
+
+    if(res[[16]] > 0)
+      stop(substr(res[[15]],1,res[[16]]))
+
+    return (res[[14]])
+  }
+  else
+    stop("The requested null model is invalid.\n\n")
+
+} # mpd.pvalues = function(...)
+
+mntd.pvalues = function(tree, matrix, null.model="uniform",
+                        abundance.weights, reps=1000, seed)
+{
+  matrix.data = unlist(t(matrix))
+
+  if(any(is.na(matrix.data)) || any(matrix.data < 0))
+    stop("The input matrix contains negative or undefined values.\n\n")
+
+  if(any(as.logical(matrix.data) != matrix.data))
+    cat("\n Warning: the input matrix contains values which are not 0 or 1.\n")
+
+  my.seed = -1
+
+  if(hasArg(seed) == TRUE )
+    my.seed = seed
+
+  #dyn.load(paste("PhyloMeasures", .Platform$dynlib.ext, sep = ""))
+
+  number.of.edges = length(tree$edge)/2
+  number.of.leaves = length(tree$tip.label)
+
+  matrix.species = colnames(matrix)
+  matrix.rows = nrow(matrix)
+  matrix.columns = ncol(matrix)
+
+  output = vector(mode="numeric",matrix.rows)
+
+  error.message = as.character(paste0(rep(" ",length = 150), collapse=""))
+  message.size = 0
+
+  if(reps<=0)
+    stop("The requested number of repetitions is invalid.\n\n")
+
+  if(null.model == "uniform" )
+  {
+    res <-.C("mntd_pvalues_uniform",as.integer(length(tree$edge.length)), 
+             as.integer(number.of.leaves), as.integer(tree$edge), 
+             as.numeric(tree$edge.length), as.character(tree$tip.label), 
+             as.character(matrix.species), as.integer(matrix.rows), as.integer(matrix.columns), 
+             as.integer(matrix.data), as.integer(reps), as.integer(my.seed), as.numeric(output), 
+             as.character(error.message), as.integer(message.size),
+             PACKAGE = "PhyloMeasures")
+
+    if(res[[14]] > 0)
+      stop(substr(res[[13]],1,res[[14]]))
+
+    return (res[[12]])
+  }
+  else if(null.model == "sequential")
+  {
+    if(hasArg(abundance.weights) == FALSE)
+      stop("No abundance weights specified.\n\n")
+
+    abundance.names = names(abundance.weights)
+
+    res <-.C("mntd_pvalues_weighted_sequential",as.integer(length(tree$edge.length)), 
+             as.integer(number.of.leaves), as.integer(tree$edge), 
+             as.numeric(tree$edge.length), as.character(tree$tip.label), 
+             as.character(abundance.names), as.numeric(abundance.weights), as.character(matrix.species), 
+             as.integer(matrix.rows), as.integer(matrix.columns), as.integer(matrix.data), 
+             as.integer(reps), as.integer(my.seed), as.numeric(output), 
+             as.character(error.message), as.integer(message.size),
+             PACKAGE = "PhyloMeasures")
+
+    if(res[[16]] > 0)
+      stop(substr(res[[15]],1,res[[16]]))
+
+    return (res[[14]])
+  }
+  else
+    stop("The requested null model is invalid.\n\n")
+
+} # mntd.pvalues = function(...)
+
+
+cac.pvalues = function(tree, matrix, chi, null.model="uniform", 
+                       abundance.weights, reps=1000, seed)
+{
+  matrix.data = unlist(t(matrix))
+
+  if(any(is.na(matrix.data)) || any(matrix.data < 0))
+    stop("The input matrix contains negative or undefined values.\n\n")
+
+  if(any(as.logical(matrix.data) != matrix.data))
+    cat("\n Warning: the input matrix contains values which are not 0 or 1.\n")
+
+  my.seed = -1
+
+  if(hasArg(seed) == TRUE )
+    my.seed = seed
+
+  #dyn.load(paste("PhyloMeasures", .Platform$dynlib.ext, sep = ""))
+
+  number.of.edges = length(tree$edge)/2
+  number.of.leaves = length(tree$tip.label)
+
+  matrix.species = colnames(matrix)
+  matrix.rows = nrow(matrix)
+  matrix.columns = ncol(matrix)
+
+  output = vector(mode="numeric",matrix.rows)
+
+  error.message = as.character(paste0(rep(" ",length = 150), collapse=""))
+  message.size = 0
+
+  if(reps<=0)
+    stop("The requested number of repetitions is invalid.\n\n")
+
+  if(null.model == "uniform" )
+  {
+    res <-.C("cac_pvalues_uniform",as.integer(length(tree$edge.length)), 
+             as.integer(number.of.leaves), as.integer(tree$edge), 
+             as.numeric(tree$edge.length), as.character(tree$tip.label), as.numeric(chi), 
+             as.character(matrix.species), as.integer(matrix.rows), as.integer(matrix.columns), 
+             as.integer(matrix.data), as.integer(reps), as.integer(my.seed), as.numeric(output), 
+             as.character(error.message), as.integer(message.size),
+             PACKAGE = "PhyloMeasures")
+
+    if(res[[15]] > 0)
+      stop(substr(res[[14]],1,res[[15]]))
+
+    return (res[[13]])
+  }
+  else if(null.model == "sequential")
+  {
+    if(hasArg(abundance.weights) == FALSE)
+      stop("No abundance weights specified.\n\n")
+
+    abundance.names = names(abundance.weights)
+
+    res <-.C("cac_pvalues_weighted_sequential",as.integer(length(tree$edge.length)), 
+             as.integer(number.of.leaves), as.integer(tree$edge), 
+             as.numeric(tree$edge.length), as.character(tree$tip.label), as.numeric(chi),
+             as.character(abundance.names), as.numeric(abundance.weights), as.character(matrix.species), 
+             as.integer(matrix.rows), as.integer(matrix.columns), as.integer(matrix.data), 
+             as.integer(reps), as.integer(my.seed), as.numeric(output), 
+             as.character(error.message), as.integer(message.size),
+             PACKAGE = "PhyloMeasures")
+
+    if(res[[17]] > 0)
+      stop(substr(res[[16]],1,res[[17]]))
+
+    return (res[[15]])
+  }
+  else
+    stop("The requested null model is invalid.\n\n")
+
+} # cac.pvalues = function(...)

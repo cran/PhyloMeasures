@@ -1,5 +1,5 @@
 //////////////////////////////////////////////////////////////////////////////////
-//    Copyright (C) 2015,  Constantinos Tsirogiannis.  Email: analekta@gmail.com
+//    Copyright (C) 2016,  Constantinos Tsirogiannis.  Email: tsirogiannis.c@gmail.com
 //
 //    This file is part of PhyloMeasures.
 //
@@ -25,18 +25,33 @@ namespace PhylogeneticMeasures
   template< class KernelType>
   struct Community_distance_nearest_taxon_auxiliary_data
   {
-    typedef KernelType                    Kernel;
-    typedef typename Kernel::Number_type  Number_type;
+    typedef KernelType                                               Kernel;
+    typedef typename Kernel::Number_type                            Number_type;
+    typedef Community_distance_nearest_taxon_auxiliary_data<Kernel>  Self;
+
 
     Number_type first_min_a, second_min_a, rest_tree_min_a,
                 first_min_b, second_min_b, rest_tree_min_b;
 
-    Community_distance_nearest_taxon_auxiliary_data():first_min_a(Number_type(-1.0)), second_min_a(Number_type(-1.0)), 
-	                                                  rest_tree_min_a(Number_type(-1.0)), 
-                                                          first_min_b(Number_type(-1.0)), 
-	                                                  second_min_b(Number_type(-1.0)), 
-                                                          rest_tree_min_b(Number_type(-1.0)){}
-  };
+    Community_distance_nearest_taxon_auxiliary_data():
+    first_min_a(Number_type(-1.0)), second_min_a(Number_type(-1.0)), 
+    rest_tree_min_a(Number_type(-1.0)), first_min_b(Number_type(-1.0)),
+    second_min_b(Number_type(-1.0)), rest_tree_min_b(Number_type(-1.0)){}
+
+    Self& operator=(const Self& d)
+    {
+      first_min_a = d.first_min_a;
+      second_min_a = d.second_min_a;
+      rest_tree_min_a = d.rest_tree_min_a;
+      first_min_b = d.first_min_b;
+      second_min_b = d.second_min_b;
+      rest_tree_min_b = d.rest_tree_min_b;              
+
+      return *this;
+ 
+    } // operator=(const Self &d)
+
+  }; // Community_distance_nearest_taxon_auxiliary_data
 
   template< typename KernelType>
   struct Community_distance_nearest_taxon_node_type:

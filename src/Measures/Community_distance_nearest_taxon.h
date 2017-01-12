@@ -1,5 +1,5 @@
 //////////////////////////////////////////////////////////////////////////////////
-//    Copyright (C) 2015,  Constantinos Tsirogiannis.  Email: analekta@gmail.com
+//    Copyright (C) 2016,  Constantinos Tsirogiannis.  Email: tsirogiannis.c@gmail.com
 //
 //    This file is part of PhyloMeasures.
 //
@@ -42,6 +42,12 @@ struct Community_distance_nearest_taxon: public KernelType::Measure_base_bimodal
   
   Community_distance_nearest_taxon(Tree_type &tree)
   { p_tree = &tree;}
+
+  Tree_type& tree(void)
+  { return *p_tree;}
+
+  Tree_type* tree_pointer(void)
+  { return p_tree;}
 
   private:
 
@@ -190,7 +196,6 @@ struct Community_distance_nearest_taxon: public KernelType::Measure_base_bimodal
     return distance_b;
 	
   } // operator()(...)
-
 
   template< class RangeIterator >
   Number_type averaged( RangeIterator rbegin_a, RangeIterator rend_a,
@@ -562,6 +567,9 @@ struct Community_distance_nearest_taxon: public KernelType::Measure_base_bimodal
   //////////////////////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  bool is_symmetric()
+  { return true;}
 
   Number_type compute_expectation( int sample_size_a, int sample_size_b )
   {  

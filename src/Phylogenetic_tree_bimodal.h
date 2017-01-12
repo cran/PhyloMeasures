@@ -1,5 +1,5 @@
 //////////////////////////////////////////////////////////////////////////////////
-//    Copyright (C) 2015,  Constantinos Tsirogiannis.  Email: analekta@gmail.com
+//    Copyright (C) 2016,  Constantinos Tsirogiannis.  Email: tsirogiannis.c@gmail.com
 //
 //    This file is part of PhyloMeasures.
 //
@@ -29,15 +29,30 @@ class Phylogenetic_tree_bimodal: public PhylogeneticMeasures::Phylogenetic_tree_
 {
  public:
 
-  typedef KernelType                                                                     Kernel;
-  typedef NodeType                                                                       Node_type;
-  typedef typename Kernel::Numeric_traits                                                Numeric_traits;
-  typedef typename Kernel::Number_type                                                   Number_type;
-  typedef typename PhylogeneticMeasures::Phylogenetic_tree_base<Kernel, Node_type>       Base;
-  typedef Phylogenetic_tree_bimodal<Kernel, Node_type>                                   Self;
-  typedef Self                                                                           Tree_type;
+  typedef KernelType                                                                 Kernel;
+  typedef NodeType                                                                   Node_type;
+  typedef typename Kernel::Numeric_traits                                           Numeric_traits;
+  typedef typename Kernel::Number_type                                              Number_type;
+  typedef typename PhylogeneticMeasures::Phylogenetic_tree_base<Kernel, Node_type>  Base;
+  typedef Phylogenetic_tree_bimodal<Kernel, Node_type>                               Self;
+  typedef Self                                                                       Tree_type;
+
+ public:
 
   Phylogenetic_tree_bimodal():Base(){}
+
+  Self& operator=(const Self &d)
+  {
+    this->clear(); 
+    
+    Base::operator=(d);
+    
+    for(int i=0; i<d._marked_nodes_b.size(); i++)
+      _marked_nodes_b.push_back(d._marked_nodes_b[i]); 
+  }
+
+  Phylogenetic_tree_bimodal( const Phylogenetic_tree_bimodal &ptb)
+  { (*this) = ptb; }
 
  private:
   
@@ -84,7 +99,13 @@ class Phylogenetic_tree_bimodal: public PhylogeneticMeasures::Phylogenetic_tree_
   void clear_marked_nodes_b()
   { _marked_nodes_b.clear(); }
   
- private:
+  void clear()
+  {
+    Base::clear();
+    this->clear_marked_nodes_b();
+  }
+
+ protected:
 
    std::vector<int> _marked_nodes_b; // Stores the indices of the nodes that
                                      // constitute the Steiner tree that connects the leaves of the sample. 

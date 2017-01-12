@@ -1,5 +1,5 @@
 //////////////////////////////////////////////////////////////////////////////////
-//    Copyright (C) 2015,  Constantinos Tsirogiannis.  Email: analekta@gmail.com
+//    Copyright (C) 2016,  Constantinos Tsirogiannis.  Email: tsirogiannis.c@gmail.com
 //
 //    This file is part of PhyloMeasures.
 //
@@ -27,16 +27,44 @@ namespace PhylogeneticMeasures {
 template <class KernelType, class TreeType>
 class Mean_pairwise_distance_base
 {
-  typedef KernelType                              Kernel;
-  typedef TreeType                                Tree_type;
-  typedef typename Kernel::Measure_base_unimodal  Base;
-  typedef typename Kernel::Number_type            Number_type; 
-  typedef typename Tree_type::Node_type           Node_type;
+  typedef KernelType                                     Kernel;
+  typedef TreeType                                       Tree_type;
+  typedef Mean_pairwise_distance_base<Kernel,Tree_type>  Self;
+  typedef typename Kernel::Number_type                  Number_type; 
+  typedef typename Tree_type::Node_type                 Node_type;
 
  public:
   
    Mean_pairwise_distance_base():_total_path_costs(-1.0),_sum_all_edges_costs(-1.0),_sum_all_leaf_costs(-1.0)
    {}
+
+   Self& operator=(const Self& d)
+   {
+     _edge_path_costs.clear();
+     _marked_subtree_path_costs.clear();
+
+     for(int i=0; i<d._edge_path_costs.size(); i++)
+       _edge_path_costs.push_back(d.edge_path_cost(i));
+
+     for(int i=0; i<d._marked_subtree_path_costs.size(); i++)
+       _marked_subtree_path_costs.push_back(d.edge_path_cost(i));
+
+     _total_path_costs=d._total_path_costs; 
+     _sum_all_edges_costs=d.sum_all_edges_costs(); 
+     _sum_all_leaf_costs=d.sum_all_leaf_costs();
+
+     return *this;
+
+   } // operator=(const Self& d)
+
+  void initialize_marked_subtree_path_costs(Tree_type &tree)  
+  {
+    if(_marked_subtree_path_costs.size() != tree.number_of_nodes())
+    {  
+      _marked_subtree_path_costs.clear();
+      _marked_subtree_path_costs.assign(tree.number_of_nodes(), Number_type(0.0));
+    }
+  }
 
   Number_type total_path_costs(Tree_type &tree);
 
@@ -46,13 +74,13 @@ class Mean_pairwise_distance_base
 
   void compute_all_edge_path_costs(Tree_type& tree);
 
-  Number_type edge_path_cost( int i )
+  Number_type edge_path_cost( int i ) const
   { return _edge_path_costs[i]; }
 
-  Number_type sum_all_edges_costs( void )
+  Number_type sum_all_edges_costs( void ) const 
   { return _sum_all_edges_costs; }
 
-  Number_type sum_all_leaf_costs( void )
+  Number_type sum_all_leaf_costs( void ) const
   { return _sum_all_leaf_costs; }  
 
  protected:
@@ -63,10 +91,15 @@ class Mean_pairwise_distance_base
 
  protected:
 
-   std::vector< Number_type>  _edge_path_costs; // The i-th element of this vector stores
-                                                // the sum of the costs of all paths that
-                                                // contain the edge/node with index i in the
-                                                // tree on which this class was applied.
+   std::vector<Number_type>  _edge_path_costs; // The i-th element of this vector stores
+                                               // the sum of the costs of all paths that
+                                               // contain the edge/node with index i in the
+                                               // tree on which this class was applied.
+
+   std::vector<Number_type>  _marked_subtree_path_costs; // The i-th element of this vector stores
+                                                         // the sum of the costs of all paths between
+                                                         // the node with index i in the associated tree
+                                                         // and the marked leaves in its subtree.
 
 
    // The following are constants that are stored so as to achieve

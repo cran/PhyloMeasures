@@ -1,5 +1,5 @@
 //////////////////////////////////////////////////////////////////////////////////
-//    Copyright (C) 2015,  Constantinos Tsirogiannis.  Email: analekta@gmail.com
+//    Copyright (C) 2016,  Constantinos Tsirogiannis.  Email: tsirogiannis.c@gmail.com
 //
 //    This file is part of PhyloMeasures.
 //
@@ -53,7 +53,126 @@
     p_tree->unmark_Steiner_tree_of_sample(rbegin, rend);
 
     return total_dist;
+
   } // Phylogenetic_diversity<KernelType>::operator()(...)
+
+  template< class KernelType >
+  template < class OutputIterator >
+  void PhylogeneticMeasures::Phylogenetic_diversity<KernelType>::
+  incremental_operator( std::vector<int> &sample,
+                        std::vector<int> &sample_sizes, OutputIterator ot )
+  {
+    int n_l=p_tree->number_of_leaves(),
+        n_n=p_tree->number_of_nodes();  
+
+    for(int i=0; i<sample_sizes.size(); i++)
+      if(sample_sizes[i] > n_l || sample_sizes[i] < 0 || sample_sizes[i] > sample.size())
+      {
+        std::string exception_msg;
+        exception_msg += " One of the sample sizes provided to the incremental operator is out of range.\n";     
+        Exception_type excp;
+        excp.get_error_message(exception_msg);
+        Exception_functor excf;
+        excf(excp);
+      }
+      else if(i>0 && sample_sizes[i]<=sample_sizes[i-1])
+      {
+        std::string exception_msg;
+        exception_msg += " The sample sizes provided to the incremental operator are not sorted.\n";     
+        Exception_type excp;
+        excp.get_error_message(exception_msg);
+        Exception_functor excf;
+        excf(excp);
+      }
+
+    if(sample_sizes.back() != sample.size())
+    {
+      std::string exception_msg;
+      exception_msg += " The largest sample size should equal the size of the input sample.\n";     
+      Exception_type excp;
+      excp.get_error_message(exception_msg);
+      Exception_functor excf;
+      excf(excp);
+    }
+
+    // Output values for all trivial sample sizes (i.e <2)
+   
+    int ss_index=0;
+
+    while(ss_index < sample_sizes.size() && sample_sizes[ss_index] <2)
+    {
+      *ot++ = Number_type(0.0);
+      ss_index++;
+    }
+
+    if(ss_index>=sample_sizes.size())
+      return;
+
+    if(sample_sizes.size()==0 || sample.size() == 0)
+      return;
+
+    // Deal with the first non-trivial sample size 
+
+    int min_index=n_n+1, 
+        max_index=-1, 
+        prev_sample_size, 
+        curr_sample_size;
+
+    for(int i=0; i<sample_sizes[ss_index]; i++)
+    {
+      if(sample[i]<min_index)
+        min_index = sample[i];
+
+      if(sample[i]>max_index)
+        max_index = sample[i];
+    }
+
+    int intersection_index = p_tree->compute_intersection_node_index(min_index, max_index);
+
+    p_tree->node(intersection_index).mark = true;
+
+    // Mark all the nodes which fall on a path that connects
+    // a leaf node in the sample and the node indicated by intersection_index.
+    // For each edge that we traverse, add the corresponding weight to the solution.
+
+    std::vector<int>::iterator rit=sample.begin();
+
+    for(int i=0; i<sample_sizes[ss_index]; i++)
+      rit++;
+     
+    Number_type total_dist = p_tree->mark_Steiner_tree_of_sample(sample.begin(), rit);
+
+    if( p_tree->node(intersection_index).children.size() > 0 )    
+      *ot++ = total_dist;
+    else
+      *ot++ = Number_type(0.0);
+
+    // Continue with the rest sample sizes
+
+    prev_sample_size = sample_sizes[ss_index];
+
+    for(int i=ss_index+1; i<sample_sizes.size(); i++)
+    {
+      curr_sample_size = sample_sizes[i];
+
+      for(int j=prev_sample_size; j<curr_sample_size; j++)
+        total_dist += p_tree->update_marked_Steiner_tree(intersection_index,sample[j]); // intersection_index
+                                                                                        // might get 
+                                                                                        // updated here       
+
+      *ot++ = total_dist;
+  
+      prev_sample_size = curr_sample_size;
+
+    } // for(int i=ss_index+1; i<sample_sizes.size(); i++)
+
+    // Unmark all marked nodes.
+
+    p_tree->unmark_Steiner_tree_of_sample(sample.begin(), sample.end());
+
+    return;
+
+  } // Phylogenetic_diversity<KernelType>::incremental_operator(...)
 
 
   template< class KernelType >
@@ -162,21 +281,8 @@
 
   template< class KernelType >
   typename KernelType::Number_type PhylogeneticMeasures::Phylogenetic_diversity<KernelType>::
-  compute_expectation( int sample_size )
+  compute_expectation_uniform_distribution( int sample_size )
   {
-    if(sample_size < 0 || sample_size > p_tree->number_of_leaves())
-    {
-      std::string exception_msg;
-      exception_msg += " Request to compute expectation with sample size which is out of range.\n";     
-      Exception_type excp;
-      excp.get_error_message(exception_msg);
-      Exception_functor excf;
-      excf(excp);
-    }
-
-    if( sample_size <= 1)
-      return Number_type(0.0);
-
     p_tree->assign_all_subtree_leaves(p_tree->root_index());
     compute_all_hypergeometric_probabilities( sample_size, p_tree->number_of_leaves());
 
@@ -189,11 +295,11 @@
 
     return expectation;
 	
-  } //compute_expectation( int sample_size )
+  } //compute_expectation_uniform_distribution( int sample_size )
 
   template< class KernelType >
   typename KernelType::Number_type PhylogeneticMeasures::Phylogenetic_diversity<KernelType>::
-  compute_variance( int sample_size)
+  compute_variance_uniform_distribution( int sample_size)
   {
     if(sample_size < 0 || sample_size > p_tree->number_of_leaves())
     {
@@ -256,12 +362,12 @@
 
     return total_sum-(exp*exp);
 
-  } // compute_variance( ... )
+  } // compute_variance_uniform_distribution( ... )
   
 
   template< class KernelType >
   typename KernelType::Number_type PhylogeneticMeasures::Phylogenetic_diversity<KernelType>::
-  compute_variance_slow( int sample_size )
+  compute_variance_uniform_distribution_slow( int sample_size )
   {
     if(sample_size < 0 || sample_size > p_tree->number_of_leaves())
     {
@@ -308,6 +414,6 @@
 
     return sum-(exp*exp);
 
-  } // compute_variance_slow( ... )
+  } // compute_variance_uniform_distribution_slow( ... )
 
 #endif //PHYLOGENETIC_DIVERSITY_IMPL_H

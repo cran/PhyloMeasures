@@ -1,5 +1,5 @@
 //////////////////////////////////////////////////////////////////////////////////
-//    Copyright (C) 2015,  Constantinos Tsirogiannis.  Email: analekta@gmail.com
+//    Copyright (C) 2016,  Constantinos Tsirogiannis.  Email: tsirogiannis.c@gmail.com
 //
 //    This file is part of PhyloMeasures.
 //
@@ -20,6 +20,7 @@
 #ifndef TREE_NODE_UNIMODAL_H
 #define TREE_NODE_UNIMODAL_H
 
+#include<iostream>
 #include<vector>
 #include<string>
 
@@ -31,7 +32,8 @@ namespace PhylogeneticMeasures
   template <class KernelType>
   struct Tree_node_unimodal
   {
-    typedef KernelType   Kernel;
+    typedef KernelType                  Kernel;
+    typedef Tree_node_unimodal<Kernel>  Self;
 
     std::string taxon; // Species/taxonomy name.
     double distance; // Distance from father node.
@@ -48,11 +50,55 @@ namespace PhylogeneticMeasures
     Tree_node_unimodal():distance(-1.0),parent(-1),mark(false),marked_subtree_leaves(0)
     {}
 
-    int number_of_children()
+    Tree_node_unimodal(const Self& d)
+    {
+      this->taxon=d.taxon;
+      this->distance=d.distance; 
+
+      this->children.clear();
+      this->marked_children.clear(); 
+
+      for(int i=0; i<d.children.size(); i++)
+        this->children.push_back(d.children[i]);
+
+      for(int i=0; i<d.marked_children.size(); i++)
+        this->marked_children.push_back(d.marked_children[i]);
+
+      this->parent=d.parent; 
+      this->mark=d.mark; 
+      this->all_subtree_leaves=d.all_subtree_leaves; 
+      this->marked_subtree_leaves=d.marked_subtree_leaves;                
+ 
+   } // Tree_node_unimodal(const Self& d)
+
+    int number_of_children() const
     { return children.size(); }
 
     int number_of_marked_children()
     { return marked_children.size(); }
+
+    Self& operator=(const Self& d)
+    {
+      taxon=d.taxon;
+      distance=d.distance; 
+
+      children.clear();
+      marked_children.clear(); 
+
+      for(int i=0; i<d.children.size(); i++)
+        children.push_back(d.children[i]);
+
+      for(int i=0; i<d.marked_children.size(); i++)
+        marked_children.push_back(d.marked_children[i]);
+
+      parent=d.parent; 
+      mark=d.mark; 
+      all_subtree_leaves=d.all_subtree_leaves; 
+      marked_subtree_leaves=d.marked_subtree_leaves;                
+
+      return *this;
+ 
+   } // operator=(const Self &d)
 
   }; // struct Tree_node_unimodal
 
@@ -64,12 +110,26 @@ namespace PhylogeneticMeasures
   struct Tree_node_unimodal_augmented: 
   public Tree_node_unimodal<typename AUXILIARY_TYPE::Kernel>, public AUXILIARY_TYPE
   {
-    typedef AUXILIARY_TYPE                   Auxiliary_type;
-    typedef typename Auxiliary_type::Kernel  Kernel;
-    typedef Tree_node_unimodal<Kernel>       Base_type;
+    typedef AUXILIARY_TYPE                                Auxiliary_type;
+    typedef typename Auxiliary_type::Kernel              Kernel;
+    typedef Tree_node_unimodal<Kernel>                    Base_type;
+    typedef Tree_node_unimodal_augmented<Auxiliary_type>  Self;
 
     Tree_node_unimodal_augmented():Base_type(), Auxiliary_type(){}
-  };
+
+    Tree_node_unimodal_augmented(const Self &d):Base_type(d),Auxiliary_type(d){}
+
+
+    Self& operator=(const Self& d)
+    {
+      Base_type::operator=(d);
+      Auxiliary_type::operator=(d);
+              
+      return *this;
+ 
+   } // operator=(const Self &d)
+
+  }; // Tree_node_unimodal_augmented
 
 } // namespace PhylogeneticMeasures 
 
