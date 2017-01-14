@@ -38,7 +38,7 @@ struct Measure_base_bimodal
 
   struct Is_smaller_pair
   {
-    bool operator()(const std::pair<int,int>&a, const std::pair<int,int> &b)
+    bool operator()(const std::pair<int,int>&a, const std::pair<int,int> &b) const
     {
       if(a.first < b.first)
         return true;

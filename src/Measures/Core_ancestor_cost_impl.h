@@ -157,8 +157,6 @@
         max_index = sample[i];
     }
 
-    int intersection_index = p_tree->compute_intersection_node_index(min_index, max_index);
-
     Number_type temp_rchi = Ceiling()(this->chi()*Number_type(sample_sizes[ss_index])); 
     int rchi = int(To_double()(temp_rchi));
     
@@ -247,8 +245,6 @@
   {
     int current_index, previous_index;
     Node_type previous_node;
-
-    Number_type path_dist=0.0;
 
     current_index = p_tree->node(new_node_index).parent;
     previous_index = new_node_index; 

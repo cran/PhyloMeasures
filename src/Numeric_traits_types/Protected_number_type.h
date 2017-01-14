@@ -292,7 +292,7 @@ class Protected_number_type
 
   Self operator=(const Number_type pn)
   {
-    _n = n;
+    _n = pn.n();
     _exp = 0;
     _set_vol(); 
 

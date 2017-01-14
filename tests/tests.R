@@ -244,10 +244,28 @@ for( k in 0:length(names))
     deviation.check = sqrt(deviation.check/(nrow(results.cd)*ncol(results.cd)))
 
     if( abs(moments.cd[1] - expectation.check) > 0.01 )
+    {
+      cat("Sample size a: ", k,"\n")
+      cat("Sample size b: ", h,"\n")
+      cat("moments.cd[1]: ", moments.cd[1],"\n") 
+      cat("expectation.check: ", expectation.check,"\n") 
+      cat("nrow(results.cd): ", nrow(results.cd),"\n") 
+      cat("ncol(results.cd): ", ncol(results.cd),"\n") 
+
       stop("There is an unexpected discrepancy in the value of the CD expectation.")
+    }
 
     if( abs(moments.cd[2] - deviation.check) > 0.01 )
+    {
+      cat("Sample size a: ", k,"\n")
+      cat("Sample size b: ", h,"\n")
+      cat("moments.cd[2]: ", moments.cd[1],"\n") 
+      cat("deviation.check: ", deviation.check,"\n") 
+      cat("nrow(results.cd): ", nrow(results.cd),"\n") 
+      cat("ncol(results.cd): ", ncol(results.cd),"\n") 
+
       stop("There is an unexpected discrepancy in the value of the CD deviation.")
+    }
 
   } # for( h in 0: length(names) )
 

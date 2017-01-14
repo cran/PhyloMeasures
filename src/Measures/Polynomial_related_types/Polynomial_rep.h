@@ -75,8 +75,8 @@ class Polynomial_multiplication
 
     Inner_product_functor_3(int i_from, int max, int step, Protected_number_type *a, 
                            Protected_number_type *b, Protected_number_type *c, int size_a, int size_b): 
-                            _i_from(i_from), _max(max), _step(step), _a(a), _b(b), _c(c),
-                            _size_a(size_a), _size_b(size_b){}
+                            _i_from(i_from), _step(step), _max(max), 
+                            _size_a(size_a), _size_b(size_b), _a(a), _b(b), _c(c){}
 
    public:           
            
@@ -105,8 +105,9 @@ class Polynomial_multiplication
 
  public:
 
-  Polynomial_multiplication():_cutoff(-1),_max_threads(std::max(int(std::thread::hardware_concurrency()),1)), 
-                              _is_parallel(true),_count_in(0),_count_out(0),_count_total(0){}
+  Polynomial_multiplication():_is_parallel(true),_cutoff(-1),
+                              _max_threads(std::max(int(std::thread::hardware_concurrency()),1)), 
+                              _count_in(0),_count_out(0),_count_total(0){}
 
   void set_cutoff_value( int cutoff)
   { _cutoff = cutoff; }
@@ -147,9 +148,6 @@ class Polynomial_multiplication
 
     b_r_first = b_r_last;
     b_r_last = b.rend();
-
-    int count_a=1, 
-         count_b=1;
 
     Protected_number_type cf(Number_type(0.0)),af;
   
@@ -290,12 +288,6 @@ class Polynomial_multiplication
 
       for(int hh=0; hh<b.size(); hh++)
         bb[hh] = b[hh];
-
-
-      int full_reps = (threshold+1)/_max_threads,
-           extra_rep = (threshold+1)%_max_threads;
-
-      int i=0;
 
       std::vector<std::thread> threads;
 

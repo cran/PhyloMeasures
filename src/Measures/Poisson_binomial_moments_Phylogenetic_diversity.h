@@ -166,9 +166,6 @@ namespace PhylogeneticMeasures
 
         *ot_exp++ = pn.to_number_type();
 
-
-        Protected_number_type tmpppp = (aggregated_var[i]/basic[i]);
-
         pn = (aggregated_var[i]/basic[i])-var_minus-(pn*pn); 
 
         if(pn.to_number_type() < Number_type(0.0)) 

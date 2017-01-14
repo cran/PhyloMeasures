@@ -18,8 +18,8 @@ and the Unique Fraction (UniFrac).
 \tabular{ll}{
 Package: \tab PhyloMeasures\cr
 Type: \tab Package\cr
-Version: \tab 2.0\cr
-Date: \tab 2015-12-13\cr
+Version: \tab 2.1\cr
+Date: \tab 2017-1-14\cr
 License: \tab GPL-3 \cr
 }
 The package contains three types of functions; functions that compute the (standardized) value of a phylogenetic biodiversity measure (query functions), functions that compute the p-values of a measure (p-value functions), and functions that compute the statistical moments of a measure (moment functions).  

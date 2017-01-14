@@ -305,8 +305,6 @@
   
       prev_sample_size = curr_sample_size;
 
-      int count = 0;
-
     } // for(int i=ss_index+1; i<sample_sizes.size(); i++)
 
     ////////////////////////////////////////////////////////////////////////////////////////

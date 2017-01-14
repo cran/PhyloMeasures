@@ -224,7 +224,7 @@ class Incremental_Monte_Carlo_handler
       std::vector<Number_type> *sums, 
       std::vector<Number_type> *square_sums):
       _msr(msr), _sampler(sampler), _sample_sizes(sample_sizes),  
-      _repetitions(repetitions), _sums(sums), _square_sums(square_sums)
+      _sums(sums), _square_sums(square_sums), _repetitions(repetitions)
     {}
            
     void operator()(void) 

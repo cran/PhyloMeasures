@@ -2,8 +2,8 @@ Package: PhyloMeasures
 Type: Package
 Title: Fast and Exact Algorithms for Computing Phylogenetic
         Biodiversity Measures
-Version: 2.0
-Date: 2017-1-11
+Version: 2.1
+Date: 2017-1-14
 Authors@R: c(person("Constantinos", "Tsirogiannis", role = c("aut", "cre"),
 		     email = "tsirogiannis.c@gmail.com"),
 	      person("Brody", "Sandel", role = "aut"))
@@ -31,6 +31,6 @@ Imports: ape, methods
 LazyLoad: yes
 SystemRequirements: C++11
 NeedsCompilation: yes
-Packaged: 2017-01-11 18:29:47 UTC; constant
+Packaged: 2017-01-13 14:53:25 UTC; constant
 Repository: CRAN
-Date/Publication: 2017-01-12 16:14:55
+Date/Publication: 2017-01-14 01:13:19

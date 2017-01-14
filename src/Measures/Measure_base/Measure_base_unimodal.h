@@ -40,7 +40,7 @@ struct Measure_base_unimodal
 
  public: 
  
-  Measure_base_unimodal():_seed(0),_distribution(Kernel::UNIFORM_FIXED_SIZE){}
+  Measure_base_unimodal():_distribution(Kernel::UNIFORM_FIXED_SIZE),_seed(0){}
 
   void set_probability_distribution( Distribution_type distrib )
   { _distribution = distrib; }

@@ -110,8 +110,7 @@ void transform_matrix_query_arguments_unimodal( int *n_w, int *n_l, int *edges, 
                                                 std::vector<std::string> &matrix_species_names, 
                                                 std::vector<std::vector<bool> > &matrix )
 {
-  int number_of_nodes = (*n_w)+1,
-      number_of_edges = (*n_w), 
+  int number_of_edges = (*n_w), 
       number_of_leaves = *n_l;
 
   for(int i=0; i<(*n_w); i++)
@@ -154,8 +153,7 @@ void transform_matrix_query_arguments_bimodal( int *n_w, int *n_l, int *edges, d
                                                std::vector<std::vector<bool> > &matrix_b,
                                                std::vector<std::pair<int, int> > &query_pairs)
 {
-  int number_of_nodes = (*n_w)+1,
-      number_of_edges = (*n_w), 
+  int number_of_edges = (*n_w), 
       number_of_leaves = *n_l;
 
   for(int i=0; i<(*n_w); i++)
@@ -217,8 +215,7 @@ void transform_moments_function_arguments_unimodal( int *n_w, int *n_l, int *edg
                                                     std::vector<std::string> &species_names,
                                                     std::vector<int> &query_sizes)
 {
-  int number_of_nodes = (*n_w)+1,
-      number_of_edges = (*n_w), 
+  int number_of_edges = (*n_w), 
       number_of_leaves = *n_l;
 
   for(int i=0; i<(*n_w); i++)
@@ -245,8 +242,7 @@ void transform_moments_function_arguments_bimodal( int *n_w, int *n_l, int *edge
                                                    std::vector<std::string> &species_names,
                                                    std::vector<std::pair<int,int> > &query_sizes)
 {
-  int number_of_nodes = (*n_w)+1,
-      number_of_edges = (*n_w), 
+  int number_of_edges = (*n_w), 
       number_of_leaves = *n_l;
 
   for(int i=0; i<(*n_w); i++)

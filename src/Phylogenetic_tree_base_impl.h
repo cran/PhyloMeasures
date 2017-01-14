@@ -855,7 +855,6 @@
                                   std::vector<Node_type> &current_status)
   {
     std::vector<int>  nodes;   
-    int count;
 
     for(int i=0; i<leaves.size(); i++)
       nodes.push_back(leaves[i]);
